@@ -1,0 +1,211 @@
+{% extends "base.html" %}
+
+{% block title %}Upload & Process - Bibliotecario{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8 mx-auto">
+        <!-- Page Header -->
+        <div class="text-center mb-4">
+            <h2 class="text-primary">
+                <i class="fas fa-upload me-2"></i>
+                Upload & Process CSV File
+            </h2>
+            <p class="text-muted">Configure your file processing options and start the extraction</p>
+        </div>
+
+        <!-- Upload Form -->
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">File Upload & Configuration</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" enctype="multipart/form-data" id="uploadForm">
+                    {{ form.hidden_tag() }}
+                    
+                    <!-- File Upload -->
+                    <div class="mb-4">
+                        <label for="{{ form.file.id }}" class="form-label">
+                            <i class="fas fa-file-csv me-2"></i>{{ form.file.label.text }}
+                        </label>
+                        {{ form.file(class="form-control") }}
+                        {% if form.file.errors %}
+                            <div class="text-danger mt-1">
+                                {% for error in form.file.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        <div class="form-text">
+                            <i class="fas fa-info-circle me-1"></i>
+                            Maximum file size: 100MB. Only CSV files are supported.
+                        </div>
+                    </div>
+
+                    <!-- Column Configuration -->
+                    <div class="mb-4">
+                        <label for="{{ form.obs_column.id }}" class="form-label">
+                            <i class="fas fa-columns me-2"></i>{{ form.obs_column.label.text }}
+                        </label>
+                        {{ form.obs_column(class="form-control") }}
+                        {% if form.obs_column.errors %}
+                            <div class="text-danger mt-1">
+                                {% for error in form.obs_column.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        <div class="form-text">{{ form.obs_column.description }}</div>
+                    </div>
+
+                    <!-- Processing Options -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <label for="{{ form.chunk_size.id }}" class="form-label">
+                                <i class="fas fa-layer-group me-2"></i>{{ form.chunk_size.label.text }}
+                            </label>
+                            {{ form.chunk_size(class="form-control") }}
+                            {% if form.chunk_size.errors %}
+                                <div class="text-danger mt-1">
+                                    {% for error in form.chunk_size.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">{{ form.chunk_size.description }}</div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label for="{{ form.export_formats.id }}" class="form-label">
+                                <i class="fas fa-download me-2"></i>{{ form.export_formats.label.text }}
+                            </label>
+                            {{ form.export_formats(class="form-select") }}
+                            <div class="form-text">Choose output formats for your processed data</div>
+                        </div>
+                    </div>
+
+                    <!-- Feature Options -->
+                    <div class="mb-4">
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <h6 class="card-title">Processing Features</h6>
+                                <div class="form-check">
+                                    {{ form.enable_cleaning(class="form-check-input") }}
+                                    <label class="form-check-label" for="{{ form.enable_cleaning.id }}">
+                                        <i class="fas fa-broom me-2 text-primary"></i>{{ form.enable_cleaning.label.text }}
+                                    </label>
+                                    <div class="form-text">{{ form.enable_cleaning.description }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <div class="d-grid">
+                        {{ form.submit(class="btn btn-primary btn-lg", id="submitBtn") }}
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Processing Info -->
+        <div class="card mt-4 border-info">
+            <div class="card-header bg-info text-white">
+                <h6 class="mb-0"><i class="fas fa-info-circle me-2"></i>What happens next?</h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6 class="text-info">Processing Steps:</h6>
+                        <ol class="small">
+                            <li>File validation and upload</li>
+                            <li>Text cleaning and sanitization</li>
+                            <li>Pattern recognition and extraction</li>
+                            <li>Data validation and formatting</li>
+                            <li>Export to selected formats</li>
+                        </ol>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="text-info">Extracted Fields:</h6>
+                        <div class="small">
+                            <span class="badge bg-secondary me-1">IP Addresses</span>
+                            <span class="badge bg-secondary me-1">VLANs</span>
+                            <span class="badge bg-secondary me-1">MAC Addresses</span>
+                            <span class="badge bg-secondary me-1">Serial Numbers</span>
+                            <span class="badge bg-secondary me-1">ASN</span>
+                            <span class="badge bg-secondary me-1">Gateways</span>
+                            <span class="badge bg-secondary me-1">CPE Info</span>
+                            <span class="badge bg-secondary me-1">+20 more</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- File Preview Modal -->
+<div class="modal fade" id="filePreviewModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">File Preview</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="filePreviewContent">
+                    <!-- File preview will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+$(document).ready(function() {
+    // File upload validation
+    $('#{{ form.file.id }}').change(function() {
+        const file = this.files[0];
+        if (file) {
+            const fileSize = file.size / 1024 / 1024; // MB
+            const fileName = file.name;
+            
+            // Check file size
+            if (fileSize > 100) {
+                alert('File size exceeds 100MB limit. Please choose a smaller file.');
+                $(this).val('');
+                return;
+            }
+            
+            // Check file extension
+            if (!fileName.toLowerCase().endsWith('.csv')) {
+                alert('Please select a CSV file.');
+                $(this).val('');
+                return;
+            }
+            
+            // Show file info
+            const fileInfo = `Selected: ${fileName} (${fileSize.toFixed(2)} MB)`;
+            $(this).next('.form-text').html(`<i class="fas fa-check-circle text-success me-1"></i>${fileInfo}`);
+        }
+    });
+    
+    // Form submission
+    $('#uploadForm').submit(function() {
+        $('#submitBtn').prop('disabled', true)
+                      .html('<i class="fas fa-spinner fa-spin me-2"></i>Uploading & Starting Process...');
+        
+        // Show loading indicator
+        const loadingAlert = `
+            <div class="alert alert-info" role="alert">
+                <i class="fas fa-upload me-2"></i>
+                Uploading file and starting processing. Please wait...
+            </div>
+        `;
+        $(this).before(loadingAlert);
+    });
+});
+</script>
+{% endblock %}

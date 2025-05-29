@@ -1,0 +1,294 @@
+{% extends "base.html" %}
+
+{% block title %}Results - Bibliotecario{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <!-- Success Header -->
+        <div class="results-summary text-center mb-4">
+            <h2 class="mb-3">
+                <i class="fas fa-check-circle me-2"></i>
+                Processing Completed Successfully!
+            </h2>
+            <div class="row">
+                <div class="col-md-3">
+                    <h4>{{ results.stats.processing.total_rows|default(0) }}</h4>
+                    <small>Rows Processed</small>
+                </div>
+                <div class="col-md-3">
+                    <h4>{{ results.stats.processing.extracted_fields|default(0) }}</h4>
+                    <small>Fields Extracted</small>
+                </div>
+                <div class="col-md-3">
+                    <h4>{{ "%.1f"|format(results.stats.processing.processing_time|default(0)) }}s</h4>
+                    <small>Processing Time</small>
+                </div>
+                <div class="col-md-3">
+                    <h4>{{ results.download_info.formats_available|length|default(0) }}</h4>
+                    <small>Export Formats</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Download Section -->
+        <div class="row mb-4">
+            <div class="col-lg-8">
+                <div class="card shadow">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-download me-2"></i>
+                            Download Your Processed Data
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        {% if results.download_info and results.download_info.files %}
+                        <div class="row">
+                            {% for file in results.download_info.files %}
+                            <div class="col-md-6 mb-3">
+                                <div class="download-card card h-100">
+                                    <div class="card-body text-center">
+                                        {% if file.format == 'CSV' %}
+                                        <i class="fas fa-file-csv fa-3x text-success mb-3"></i>
+                                        {% elif file.format == 'EXCEL' %}
+                                        <i class="fas fa-file-excel fa-3x text-success mb-3"></i>
+                                        {% else %}
+                                        <i class="fas fa-file-code fa-3x text-info mb-3"></i>
+                                        {% endif %}
+
+                                        <h6>{{ file.format }} Format</h6>
+                                        <p class="text-muted small">{{ file.size_mb }} MB</p>
+
+                                        <a href="{{ url_for('main.download', session_id=session_id, format=file.format.lower()) }}"
+                                            class="btn btn-primary">
+                                            <i class="fas fa-download me-2"></i>
+                                            Download {{ file.format }}
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+
+                        <div class="alert alert-info mt-3">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <strong>Total size:</strong> {{ results.download_info.total_size_mb }} MB
+                            • Files will be available for 24 hours
+                        </div>
+                        {% else %}
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            No download files available.
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Processing Summary -->
+            <div class="col-lg-4">
+                <div class="card">
+                    <div class="card-header bg-info text-white">
+                        <h6 class="mb-0">
+                            <i class="fas fa-chart-bar me-2"></i>
+                            Processing Summary
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        {% if results.stats.processing %}
+                        <div class="mb-3">
+                            <strong>Text Cleaning:</strong>
+                            {% set original = results.stats.processing.original_chars|default(0) %}
+                            {% set cleaned = results.stats.processing.cleaned_chars|default(0) %}
+                            {% set reduction = ((original - cleaned) / original * 100) if original > 0 else 0 %}
+                            <br>
+                            <small class="text-muted">
+                                {{ "%.1f"|format(reduction) }}% reduction<br>
+                                {{ "{:,}".format(original) }} → {{ "{:,}".format(cleaned) }} chars
+                            </small>
+                        </div>
+                        {% endif %}
+
+                        <div class="mb-3">
+                            <strong>Processing:</strong><br>
+                            <small class="text-muted">
+                                {{ results.stats.processing.chunks_processed|default(0) }} chunks processed<br>
+                                Avg: {{ "%.1f"|format((results.stats.processing.extracted_fields|default(0)) /
+                                (results.stats.processing.total_rows|default(1))) }} fields/row
+                            </small>
+                        </div>
+
+                        <div>
+                            <strong>Export Formats:</strong><br>
+                            {% if results.download_info and results.download_info.formats_available %}
+                            {% for format in results.download_info.formats_available %}
+                            <span class="badge bg-secondary me-1">{{ format.upper() }}</span>
+                            {% endfor %}
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Extraction Statistics -->
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-chart-line me-2"></i>
+                    Field Extraction Statistics
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if results.stats.fields %}
+                <div class="row">
+                    {% for field, stats in results.stats.fields.items() %}
+                    {% if stats.count > 0 %}
+                    <div class="col-lg-6 col-xl-4 mb-3">
+                        <div class="card border-0 bg-light">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <h6 class="mb-0">{{ field.replace('_', ' ').title() }}</h6>
+                                    <span class="badge bg-success">{{ stats.percentage }}%</span>
+                                </div>
+
+                                <div class="progress mb-2" style="height: 5px;">
+                                    <div class="progress mb-2" style="height: 5px;">
+                                        <div class="progress-bar" role="progressbar" data-width="{{ stats.percentage }}"
+                                            aria-valuenow="{{ stats.percentage }}" aria-valuemin="0"
+                                            aria-valuemax="100">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <small class="text-muted">
+                                    {{ "{:,}".format(stats.count) }} values extracted
+                                </small>
+
+                                {% if stats.sample_values %}
+                                <div class="mt-2">
+                                    <small><strong>Samples:</strong></small>
+                                    {% for sample in stats.sample_values[:3] %}
+                                    <br><small class="text-muted font-monospace">{{ sample[:30] }}{% if sample|length >
+                                        30 %}...{% endif %}</small>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+
+                <!-- Low Success Fields -->
+                {% set low_success_fields = [] %}
+                {% for field, stats in results.stats.fields.items() %}
+                {% if stats.count == 0 %}
+                {% set _ = low_success_fields.append(field) %}
+                {% endif %}
+                {% endfor %}
+
+                {% if low_success_fields %}
+                <div class="alert alert-warning mt-3">
+                    <h6><i class="fas fa-exclamation-triangle me-2"></i>Fields with No Extractions:</h6>
+                    <div>
+                        {% for field in low_success_fields %}
+                        <span class="badge bg-warning text-dark me-1">{{ field.replace('_', ' ').title() }}</span>
+                        {% endfor %}
+                    </div>
+                    <small class="mt-2 d-block">
+                        These fields had no matching patterns in your data. This is normal if your data doesn't contain
+                        these specific field types.
+                    </small>
+                </div>
+                {% endif %}
+
+                {% else %}
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    No detailed statistics available.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="row mt-4">
+            <div class="col-md-6">
+                <a href="{{ url_for('main.upload') }}" class="btn btn-primary">
+                    <i class="fas fa-upload me-2"></i>
+                    Process Another File
+                </a>
+            </div>
+            <div class="col-md-6 text-md-end">
+                <button class="btn btn-outline-secondary" onclick="window.print()">
+                    <i class="fas fa-print me-2"></i>
+                    Print Report
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Data Preview Modal -->
+<div class="modal fade" id="previewModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Data Preview</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="previewContent">
+                    <!-- Preview content will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    $(document).ready(function () {
+        // Add animation to progress bars
+        $('.progress-bar').each(function () {
+            const width = $(this).css('width');
+            $(this).css('width', '0%').animate({ width: width }, 1000);
+        });
+
+        // Load data preview
+        $('#previewBtn').click(function () {
+            $.get(`/api/preview/{{ session_id }}`)
+                .done(function (data) {
+                    let html = '<div class="table-responsive"><table class="table table-sm">';
+                    html += '<thead><tr><th>Field</th><th>Count</th><th>Percentage</th><th>Sample Values</th></tr></thead><tbody>';
+
+                    data.fields.forEach(function (field) {
+                        html += `<tr>
+                        <td><strong>${field.field.replace(/_/g, ' ')}</strong></td>
+                        <td>${field.count.toLocaleString()}</td>
+                        <td>${field.percentage}%</td>
+                        <td>${field.samples.join(', ')}</td>
+                    </tr>`;
+                    });
+
+                    html += '</tbody></table></div>';
+                    $('#previewContent').html(html);
+                })
+                .fail(function () {
+                    $('#previewContent').html('<div class="alert alert-danger">Error loading preview data.</div>');
+                });
+        });
+    });
+    document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.progress-bar').forEach(function(bar) {
+        const width = bar.getAttribute('data-width');
+        if (width) {
+            bar.style.width = width + '%';
+        }
+    });
+});
+</script>
+{% endblock %}

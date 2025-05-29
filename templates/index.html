@@ -1,0 +1,518 @@
+{% extends "base.html" %}
+
+{% block title %}Bibliotecario - Início{% endblock %}
+
+{% block extra_css %}
+<style>
+/* Custom styles for index page */
+.hero-section {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 80px 0;
+    margin: -2rem -15px 3rem -15px;
+    position: relative;
+    overflow: hidden;
+}
+
+.hero-section::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="50" cy="50" r="1" fill="white" opacity="0.1"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
+    opacity: 0.3;
+}
+
+.hero-content {
+    position: relative;
+    z-index: 2;
+}
+
+.hero-icon {
+    font-size: 5rem;
+    margin-bottom: 2rem;
+    opacity: 0.9;
+    animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+}
+
+.hero-title {
+    font-size: 3.5rem;
+    font-weight: 800;
+    margin-bottom: 1.5rem;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.hero-subtitle {
+    font-size: 1.3rem;
+    margin-bottom: 2.5rem;
+    opacity: 0.95;
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.hero-btn {
+    background: white;
+    color: #667eea;
+    border: none;
+    padding: 15px 40px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border-radius: 50px;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+    transition: all 0.3s ease;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.hero-btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 30px rgba(0,0,0,0.2);
+    color: #5a67d8;
+}
+
+.how-it-works {
+    padding: 60px 0;
+    background: #f8fafc;
+    margin: 3rem -15px;
+}
+
+.section-title {
+    text-align: center;
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: #2d3748;
+    margin-bottom: 3rem;
+    position: relative;
+}
+
+.section-title::after {
+    content: '';
+    position: absolute;
+    bottom: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 80px;
+    height: 4px;
+    background: linear-gradient(90deg, #667eea, #764ba2);
+    border-radius: 2px;
+}
+
+.step-card {
+    background: white;
+    border-radius: 20px;
+    padding: 40px 20px;
+    text-align: center;
+    border: none;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+    height: 100%;
+    position: relative;
+    overflow: hidden;
+}
+
+.step-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 5px;
+    background: linear-gradient(90deg, #667eea, #764ba2);
+}
+
+.step-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+}
+
+.step-icon {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1.5rem;
+    font-size: 2rem;
+    color: white;
+    position: relative;
+}
+
+.step-1 .step-icon { background: linear-gradient(135deg, #667eea, #764ba2); }
+.step-2 .step-icon { background: linear-gradient(135deg, #f093fb, #f5576c); }
+.step-3 .step-icon { background: linear-gradient(135deg, #4facfe, #00f2fe); }
+.step-4 .step-icon { background: linear-gradient(135deg, #43e97b, #38f9d7); }
+
+.step-number {
+    position: absolute;
+    top: -10px;
+    right: -10px;
+    width: 30px;
+    height: 30px;
+    background: #2d3748;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.9rem;
+    font-weight: 700;
+}
+
+.step-title {
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: #2d3748;
+    margin-bottom: 1rem;
+}
+
+.step-description {
+    color: #718096;
+    line-height: 1.6;
+    font-size: 1rem;
+}
+
+.cta-section {
+    background: linear-gradient(135deg, #2d3748 0%, #4a5568 100%);
+    color: white;
+    padding: 60px 0;
+    margin: 3rem -15px;
+    text-align: center;
+    position: relative;
+}
+
+.cta-section::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="20" cy="20" r="2" fill="white" opacity="0.1"/><circle cx="80" cy="40" r="1" fill="white" opacity="0.1"/><circle cx="40" cy="80" r="1.5" fill="white" opacity="0.1"/></svg>');
+}
+
+.cta-content {
+    position: relative;
+    z-index: 2;
+}
+
+.cta-title {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+}
+
+.cta-subtitle {
+    font-size: 1.2rem;
+    opacity: 0.9;
+    margin-bottom: 2rem;
+    max-width: 500px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.features-section {
+    padding: 60px 0;
+}
+
+.feature-card {
+    background: white;
+    border-radius: 15px;
+    padding: 30px;
+    border: none;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+    transition: all 0.3s ease;
+    height: 100%;
+    border-left: 5px solid transparent;
+}
+
+.feature-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.12);
+}
+
+.feature-card.support-card {
+    border-left-color: #48bb78;
+}
+
+.feature-card.export-card {
+    border-left-color: #667eea;
+}
+
+.feature-title {
+    font-size: 1.4rem;
+    font-weight: 600;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.feature-list {
+    list-style: none;
+    padding: 0;
+}
+
+.feature-list li {
+    padding: 8px 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: #4a5568;
+}
+
+.feature-list li i {
+    width: 20px;
+    flex-shrink: 0;
+}
+
+.feature-list li strong {
+    color: #2d3748;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .hero-title {
+        font-size: 2.5rem;
+    }
+    
+    .hero-subtitle {
+        font-size: 1.1rem;
+    }
+    
+    .section-title {
+        font-size: 2rem;
+    }
+    
+    .step-card {
+        margin-bottom: 2rem;
+    }
+    
+    .cta-title {
+        font-size: 2rem;
+    }
+    
+    .hero-section,
+    .how-it-works,
+    .cta-section {
+        margin-left: 0;
+        margin-right: 0;
+    }
+}
+
+/* Animation delays for step cards */
+.step-1 { animation-delay: 0.1s; }
+.step-2 { animation-delay: 0.2s; }
+.step-3 { animation-delay: 0.3s; }
+.step-4 { animation-delay: 0.4s; }
+
+.fade-in-up {
+    animation: fadeInUp 0.6s ease-out forwards;
+    opacity: 0;
+    transform: translateY(30px);
+}
+
+@keyframes fadeInUp {
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<div class="hero-section">
+    <div class="container">
+        <div class="hero-content text-center">
+            <i class="fas fa-file-csv hero-icon"></i>
+            <h1 class="hero-title">Bibliotecario</h1>
+            <p class="hero-subtitle">
+                Transforme dados CSV não estruturados em informações organizadas e acionáveis com o poder da inteligência artificial
+            </p>
+            <a href="{{ url_for('main.upload') }}" class="hero-btn">
+                <i class="fas fa-rocket"></i>
+                Começar Agora
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- How It Works Section -->
+<div class="how-it-works">
+    <div class="container">
+        <h2 class="section-title">Como Funciona</h2>
+        <div class="row g-4">
+            <div class="col-lg-3 col-md-6">
+                <div class="step-card step-1 fade-in-up">
+                    <div class="step-icon">
+                        <i class="fas fa-file-upload"></i>
+                        <div class="step-number">1</div>
+                    </div>
+                    <h4 class="step-title">Carregar CSV</h4>
+                    <p class="step-description">
+                        Faça upload do seu arquivo CSV com dados de texto não estruturados
+                    </p>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6">
+                <div class="step-card step-2 fade-in-up">
+                    <div class="step-icon">
+                        <i class="fas fa-magic"></i>
+                        <div class="step-number">2</div>
+                    </div>
+                    <h4 class="step-title">Processar & Limpar</h4>
+                    <p class="step-description">
+                        Limpeza avançada remove ruídos e separadores desnecessários automaticamente
+                    </p>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6">
+                <div class="step-card step-3 fade-in-up">
+                    <div class="step-icon">
+                        <i class="fas fa-search-plus"></i>
+                        <div class="step-number">3</div>
+                    </div>
+                    <h4 class="step-title">Extrair Dados</h4>
+                    <p class="step-description">
+                        Padrões inteligentes identificam e extraem informações estruturadas
+                    </p>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6">
+                <div class="step-card step-4 fade-in-up">
+                    <div class="step-icon">
+                        <i class="fas fa-download"></i>
+                        <div class="step-number">4</div>
+                    </div>
+                    <h4 class="step-title">Exportar Resultados</h4>
+                    <p class="step-description">
+                        Baixe dados limpos e organizados em múltiplos formatos
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- CTA Section -->
+<div class="cta-section">
+    <div class="container">
+        <div class="cta-content">
+            <h2 class="cta-title">Pronto para Processar?</h2>
+            <p class="cta-subtitle">
+                Transforme seus dados em segundos com nossa tecnologia avançada
+            </p>
+            <a href="{{ url_for('main.upload') }}" class="hero-btn">
+                <i class="fas fa-bolt"></i>
+                Iniciar Processamento
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Features Section -->
+<div class="features-section">
+    <div class="container">
+        <div class="row g-4">
+            <div class="col-lg-6">
+                <div class="feature-card support-card">
+                    <h4 class="feature-title">
+                        <i class="fas fa-file-csv text-success"></i>
+                        Arquivos Suportados
+                    </h4>
+                    <ul class="feature-list">
+                        <li>
+                            <i class="fas fa-check-circle text-success"></i>
+                            <div>
+                                <strong>Arquivos CSV (.csv)</strong><br>
+                                <small class="text-muted">Formato padrão de dados tabulares</small>
+                            </div>
+                        </li>
+                        <li>
+                            <i class="fas fa-weight-hanging text-info"></i>
+                            <div>
+                                <strong>Até 100MB</strong><br>
+                                <small class="text-muted">Processe arquivos grandes com facilidade</small>
+                            </div>
+                        </li>
+                        <li>
+                            <i class="fas fa-globe text-primary"></i>
+                            <div>
+                                <strong>Qualquer Codificação</strong><br>
+                                <small class="text-muted">UTF-8, ASCII, Latin-1 e mais</small>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="col-lg-6">
+                <div class="feature-card export-card">
+                    <h4 class="feature-title">
+                        <i class="fas fa-file-export text-primary"></i>
+                        Formatos de Exportação
+                    </h4>
+                    <ul class="feature-list">
+                        <li>
+                            <i class="fas fa-file-csv text-success"></i>
+                            <div>
+                                <strong>CSV Limpo</strong><br>
+                                <small class="text-muted">Dados organizados e estruturados</small>
+                            </div>
+                        </li>
+                        <li>
+                            <i class="fas fa-file-excel text-success"></i>
+                            <div>
+                                <strong>Excel (.xlsx)</strong><br>
+                                <small class="text-muted">Múltiplas planilhas com estatísticas</small>
+                            </div>
+                        </li>
+                        <li>
+                            <i class="fas fa-code text-info"></i>
+                            <div>
+                                <strong>JSON Estruturado</strong><br>
+                                <small class="text-muted">Formato ideal para APIs e desenvolvimento</small>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Trigger animations when elements come into view
+const observerOptions = {
+    threshold: 0.1,
+    rootMargin: '0px 0px -50px 0px'
+};
+
+const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+        if (entry.isIntersecting) {
+            entry.target.style.animationPlayState = 'running';
+        }
+    });
+}, observerOptions);
+
+document.querySelectorAll('.fade-in-up').forEach(el => {
+    el.style.animationPlayState = 'paused';
+    observer.observe(el);
+});
+</script>
+{% endblock %}

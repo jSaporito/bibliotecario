@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+
+{% block title %}Processing - Bibliotecario{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8 mx-auto">
+        <!-- Page Header -->
+        <div class="text-center mb-4">
+            <h2 class="text-primary">
+                <i class="fas fa-cogs me-2"></i>
+                Processing Your File
+            </h2>
+            <p class="text-muted">Please wait while we extract and organize your data</p>
+        </div>
+
+        <!-- Progress Container -->
+        <div id="progressContainer">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-spinner fa-spin me-2"></i>
+                        Processing Status
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <!-- Progress Bar -->
+                    <div class="mb-3">
+                        <div class="progress" style="height: 25px;">
+                            <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" 
+                                 role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                                0%
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Status Message -->
+                    <div class="processing-status">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <span id="statusMessage">Initializing...</span>
+                    </div>
+                    
+                    <!-- Processing Info -->
+                    <div class="mt-3">
+                        <small class="text-muted">
+                            <i class="fas fa-clock me-1"></i>
+                            Processing time depends on file size and complexity. 
+                            Large files may take several minutes.
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Processing Steps -->
+        <div class="card mt-4 border-info">
+            <div class="card-header bg-info text-white">
+                <h6 class="mb-0">
+                    <i class="fas fa-list-ol me-2"></i>
+                    Processing Steps
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="step-item">
+                            <i class="fas fa-upload text-success me-2"></i>
+                            <span class="step-text">File Upload & Validation</span>
+                        </div>
+                        <div class="step-item">
+                            <i class="fas fa-broom text-warning me-2"></i>
+                            <span class="step-text">Text Cleaning & Sanitization</span>
+                        </div>
+                        <div class="step-item">
+                            <i class="fas fa-search text-primary me-2"></i>
+                            <span class="step-text">Pattern Recognition</span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="step-item">
+                            <i class="fas fa-database text-info me-2"></i>
+                            <span class="step-text">Data Extraction</span>
+                        </div>
+                        <div class="step-item">
+                            <i class="fas fa-check-double text-secondary me-2"></i>
+                            <span class="step-text">Validation & Formatting</span>
+                        </div>
+                        <div class="step-item">
+                            <i class="fas fa-download text-success me-2"></i>
+                            <span class="step-text">Export Generation</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- What's Being Extracted -->
+        <div class="card mt-4">
+            <div class="card-header bg-secondary text-white">
+                <h6 class="mb-0">
+                    <i class="fas fa-extract me-2"></i>
+                    Fields Being Extracted
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <h6 class="text-primary">Network Info</h6>
+                        <ul class="list-unstyled small">
+                            <li><i class="fas fa-check text-success me-1"></i>IP Management</li>
+                            <li><i class="fas fa-check text-success me-1"></i>Gateway</li>
+                            <li><i class="fas fa-check text-success me-1"></i>IP Block</li>
+                            <li><i class="fas fa-check text-success me-1"></i>VLAN</li>
+                            <li><i class="fas fa-check text-success me-1"></i>ASN</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-4">
+                        <h6 class="text-primary">Hardware</h6>
+                        <ul class="list-unstyled small">
+                            <li><i class="fas fa-check text-success me-1"></i>MAC Address</li>
+                            <li><i class="fas fa-check text-success me-1"></i>Serial Numbers</li>
+                            <li><i class="fas fa-check text-success me-1"></i>CPE/Equipment</li>
+                            <li><i class="fas fa-check text-success me-1"></i>Model Info</li>
+                            <li><i class="fas fa-check text-success me-1"></i>Interface Details</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-4">
+                        <h6 class="text-primary">Configuration</h6>
+                        <ul class="list-unstyled small">
+                            <li><i class="fas fa-check text-success me-1"></i>WiFi SSID</li>
+                            <li><i class="fas fa-check text-success me-1"></i>WiFi Password</li>
+                            <li><i class="fas fa-check text-success me-1"></i>PON Port</li>
+                            <li><i class="fas fa-check text-success me-1"></i>ONU ID</li>
+                            <li><i class="fas fa-check text-success me-1"></i>+15 more fields</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cancel Processing -->
+        <div class="text-center mt-4">
+            <button class="btn btn-outline-secondary" onclick="window.history.back()">
+                <i class="fas fa-arrow-left me-2"></i>
+                Go Back
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+$(document).ready(function() {
+    // Start polling for progress updates
+    pollProgress('{{ session_id }}');
+    
+    // Add some visual enhancements
+    $('.step-item').each(function(index) {
+        $(this).css('animation-delay', (index * 0.1) + 's');
+        $(this).addClass('fade-in');
+    });
+});
+</script>
+
+<style>
+.step-item {
+    margin-bottom: 8px;
+    padding: 5px 0;
+    opacity: 0;
+    animation: fadeIn 0.5s ease-in forwards;
+}
+
+.step-text {
+    font-size: 0.9em;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateX(-10px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+.fade-in {
+    animation: fadeIn 0.5s ease-in forwards;
+}
+</style>
+{% endblock %}
