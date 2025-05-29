@@ -4,13 +4,10 @@ import os
 import uuid
 from datetime import datetime
 import threading
+import traceback
 
-try:
-    from .forms import UploadForm
-except ImportError:
-    from app.forms import UploadForm
-
-from core.data_processor import DataProcessor
+from .forms import UploadForm
+from core.data_processor import EnhancedTelecomDataProcessor
 from core.export_handler import ExportHandler
 
 bp = Blueprint('main', __name__)
@@ -18,38 +15,43 @@ processing_status = {}
 
 @bp.route('/')
 def index():
+    """Home page"""
     return render_template('index.html')
 
 @bp.route('/upload', methods=['GET', 'POST'])
 def upload():
+    """File upload and processing"""
     form = UploadForm()
     
     if form.validate_on_submit():
+        # Generate session ID
         session_id = str(uuid.uuid4())
         
-        # Save file
+        # Save uploaded file
         file = form.file.data
         filename = secure_filename(file.filename)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         upload_path = os.path.join(current_app.config['UPLOAD_FOLDER'], f"{timestamp}_{filename}")
         file.save(upload_path)
         
-        # Store config
-        config = {
-            'session_id': session_id,
+        print(f"DEBUG: File saved to {upload_path}")
+        
+        # Store processing config with app config values
+        processing_status[session_id] = {
             'file_path': upload_path,
             'obs_column': form.obs_column.data,
             'chunk_size': form.chunk_size.data,
             'export_formats': form.export_formats.data,
             'status': 'processing',
             'progress': 0,
-            'message': 'Iniciando processamento...',
-            'start_time': datetime.now()
+            'message': 'Starting...',
+            'debug_info': [],
+            # ✅ Pass config values directly to avoid context issues
+            'download_folder': current_app.config['DOWNLOAD_FOLDER']
         }
-        processing_status[session_id] = config
         
-        # Start processing
-        thread = threading.Thread(target=process_file, args=(current_app._get_current_object(), session_id,))
+        # Start background processing with app context
+        thread = threading.Thread(target=process_file_simple, args=(current_app._get_current_object(), session_id))
         thread.daemon = True
         thread.start()
         
@@ -59,28 +61,29 @@ def upload():
 
 @bp.route('/processing/<session_id>')
 def processing(session_id):
+    """Processing status page"""
     if session_id not in processing_status:
-        flash('Sessão inválida', 'error')
+        flash('Invalid session', 'error')
         return redirect(url_for('main.index'))
     return render_template('processing.html', session_id=session_id)
 
 @bp.route('/api/status/<session_id>')
 def get_status(session_id):
+    """Get processing status"""
     if session_id not in processing_status:
-        return jsonify({'error': 'Sessão não encontrada'}), 404
+        return jsonify({'error': 'Session not found'}), 404
     
     status = processing_status[session_id]
     return jsonify({
         'status': status['status'],
         'progress': status['progress'],
-        'message': status['message'],
-        'start_time': status['start_time'].isoformat()
+        'message': status['message']
     })
 
 @bp.route('/results/<session_id>')
 def results(session_id):
+    """Results page"""
     if session_id not in processing_status:
-        flash('Sessão inválida', 'error')
         return redirect(url_for('main.index'))
     
     status = processing_status[session_id]
@@ -91,111 +94,122 @@ def results(session_id):
 
 @bp.route('/download/<session_id>/<format>')
 def download(session_id, format):
+    """Download processed file"""
     if session_id not in processing_status:
-        return jsonify({'error': 'Sessão não encontrada'}), 404
+        return jsonify({'error': 'Session not found'}), 404
     
     status = processing_status[session_id]
     if status['status'] != 'completed':
-        return jsonify({'error': 'Processamento não concluído'}), 400
+        return jsonify({'error': 'Processing not completed'}), 400
     
-    # Find file
-    download_info = status['results'].get('download_info', {})
-    for file_info in download_info.get('files', []):
-        if file_info['format'].lower() == format.lower():
-            if os.path.exists(file_info['path']):
-                return send_file(file_info['path'], as_attachment=True, download_name=file_info['filename'])
+    # Find and return file
+    if 'results' in status and 'download_info' in status['results']:
+        for file_info in status['results']['download_info']['files']:
+            if file_info['format'].lower() == format.lower():
+                if os.path.exists(file_info['path']):
+                    return send_file(file_info['path'], as_attachment=True)
     
-    return jsonify({'error': 'Arquivo não encontrado'}), 404
+    return jsonify({'error': 'File not found'}), 404
 
-from flask import current_app
-
-def process_file(session_id):
-    with current_app.app_context():
-        config = processing_status[session_id]
-
-        def update_progress(message, progress=None):
-            if session_id in processing_status:
-                processing_status[session_id]['message'] = message
-                if progress is not None:
-                    processing_status[session_id]['progress'] = progress
-
+def process_file_simple(app, session_id):
+    """Simple background processing with app context"""
+    config = processing_status[session_id]
+    
+    def update_progress(message, progress=None):
+        config['message'] = message
+        if progress is not None:
+            config['progress'] = progress
+        print(f"DEBUG: [{datetime.now().strftime('%H:%M:%S')}] {message}")
+    
+    # ✅ Use the passed app object with app context
+    with app.app_context():
         try:
-            update_progress("Processando arquivo...", 10)
-
-            # Process
-            processor = DataProcessor(chunk_size=config['chunk_size'])
+            update_progress("Starting processing...", 10)
+            
+            # Process file
+            processor = EnhancedTelecomDataProcessor(chunk_size=config['chunk_size'])
             results = processor.process_csv(
                 config['file_path'],
                 obs_column=config['obs_column'],
-                progress_callback=lambda msg, prog=None: update_progress(msg, prog or 50)
+                progress_callback=update_progress
             )
-
+            
             if not results['success']:
-                raise Exception(f"Processamento falhou: {'; '.join(results.get('errors', []))}")
-
-            update_progress("Exportando arquivos...", 80)
-
-            # Export
+                error_details = '; '.join(results.get('errors', ['Unknown error']))
+                raise Exception(f"Processing failed: {error_details}")
+            
+            update_progress("Processing completed, starting export...", 80)
+            
+            # Export files using stored config
             exporter = ExportHandler()
-            formats = []
-            if config['export_formats'] == 'csv':
-                formats = ['csv']
-            elif config['export_formats'] == 'excel':
-                formats = ['excel']
-            elif config['export_formats'] == 'both':
-                formats = ['csv', 'excel']
-            else:
-                formats = ['csv', 'excel']
-
             filename_base = f"processed_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            
+            # Use stored download folder instead of current_app
+            download_folder = config['download_folder']
+            
+            # Handle export formats
+            if config['export_formats'] == 'both':
+                export_formats = ['csv', 'excel']
+            else:
+                export_formats = [config['export_formats']]
+            
             export_results = exporter.export_data(
                 results['dataframe'],
-                current_app.config['DOWNLOAD_FOLDER'],
+                download_folder,
                 filename_base,
-                formats
+                export_formats
             )
-
+            
             if not export_results['success']:
-                raise Exception(f"Exportação falhou: {'; '.join(export_results.get('errors', []))}")
-
+                error_details = '; '.join(export_results.get('errors', ['Export failed']))
+                raise Exception(f"Export failed: {error_details}")
+            
             # Success
-            processing_status[session_id].update({
+            config.update({
                 'status': 'completed',
                 'progress': 100,
-                'message': 'Processamento concluído!',
-                'end_time': datetime.now(),
+                'message': 'Processing completed successfully!',
                 'results': {
-                    'stats': results.get('stats', {}),
+                    'stats': results['stats'],
                     'download_info': exporter.create_download_info(export_results)
                 }
             })
-
+            
+            update_progress("All processing completed!", 100)
+            
             # Cleanup
             try:
                 os.remove(config['file_path'])
-            except:
-                pass
-
+            except Exception as e:
+                print(f"Cleanup warning: {str(e)}")
+                
         except Exception as e:
-            processing_status[session_id].update({
+            error_msg = f"Error: {str(e)}"
+            print(f"Processing error: {error_msg}")
+            print(traceback.format_exc())
+            
+            config.update({
                 'status': 'error',
-                'message': f"Erro: {str(e)}",
-                'end_time': datetime.now()
+                'message': error_msg
             })
 
-@bp.errorhandler(404)
-def not_found(error):
-    return render_template('error.html', error_code=404, error_message="Página não encontrada"), 404
-
-from flask import current_app
-
-@bp.errorhandler(500)
-def internal_server_error(error):
-    import traceback
-    trace = traceback.format_exc()
-    current_app.logger.error(f"Internal server error: {error}\n{trace}")
-    return "Internal server error occurred.", 500
-
-@bp.errorhandler(413)
-def file_too_large(error):
-    return render_template('error.html', error_code=413, error_message="Arquivo muito grande"), 413
+# Simple debug endpoint
+@bp.route('/debug/<session_id>')
+def debug_info(session_id):
+    """Simple debug information"""
+    if session_id not in processing_status:
+        return "Session not found", 404
+    
+    status = processing_status[session_id]
+    return f"""
+    <html>
+    <head><title>Debug - {session_id}</title></head>
+    <body style="font-family: monospace; padding: 20px;">
+    <h2>Status: {status.get('status', 'unknown')}</h2>
+    <h3>Progress: {status.get('progress', 0)}%</h3>
+    <h3>Message: {status.get('message', 'No message')}</h3>
+    <pre>{status}</pre>
+    <p><a href="/">Back to Home</a></p>
+    </body>
+    </html>
+    """
