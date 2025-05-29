@@ -92,9 +92,10 @@ def results(session_id):
     
     return render_template('results.html', session_id=session_id, results=status.get('results'))
 
+
+
 @bp.route('/download/<session_id>/<format>')
 def download(session_id, format):
-    """Download processed file"""
     if session_id not in processing_status:
         return jsonify({'error': 'Session not found'}), 404
     
@@ -102,17 +103,46 @@ def download(session_id, format):
     if status['status'] != 'completed':
         return jsonify({'error': 'Processing not completed'}), 400
     
-    # Find and return file
+    print(f"🔍 Download request for session {session_id}, format {format}")
+    
+    # Find the requested file
     if 'results' in status and 'download_info' in status['results']:
         for file_info in status['results']['download_info']['files']:
             if file_info['format'].lower() == format.lower():
-                if os.path.exists(file_info['path']):
-                    return send_file(file_info['path'], as_attachment=True)
+                stored_path = file_info['path']
+                
+                print(f"🔍 Stored path: {stored_path}")
+                print(f"🔍 File exists at stored path: {os.path.exists(stored_path)}")
+                
+                # 🔧 FIX: Try the configured download folder first
+                filename = os.path.basename(stored_path)
+                correct_path = os.path.join(current_app.config['DOWNLOAD_FOLDER'], filename)
+                
+                print(f"🔍 Correct path: {correct_path}")
+                print(f"🔍 File exists at correct path: {os.path.exists(correct_path)}")
+                
+                if os.path.exists(correct_path):
+                    print(f"✅ Sending file: {correct_path}")
+                    return send_file(correct_path, as_attachment=True)
+                elif os.path.exists(stored_path):
+                    print(f"✅ Sending file from stored path: {stored_path}")
+                    return send_file(stored_path, as_attachment=True)
+                
+                # Debug: List files in download folder
+                download_folder = current_app.config['DOWNLOAD_FOLDER']
+                print(f"📁 Files in {download_folder}:")
+                try:
+                    for f in os.listdir(download_folder):
+                        if f.endswith(('.xlsx', '.csv')):
+                            print(f"  - {f}")
+                except Exception as e:
+                    print(f"  Error listing files: {e}")
     
+    print(f"❌ File not found for session {session_id}, format {format}")
     return jsonify({'error': 'File not found'}), 404
 
 def process_file_simple(app, session_id):
-    """Simple background processing with app context"""
+    """Fixed background processing with correct path handling"""
     config = processing_status[session_id]
     
     def update_progress(message, progress=None):
@@ -121,7 +151,6 @@ def process_file_simple(app, session_id):
             config['progress'] = progress
         print(f"DEBUG: [{datetime.now().strftime('%H:%M:%S')}] {message}")
     
-    # ✅ Use the passed app object with app context
     with app.app_context():
         try:
             update_progress("Starting processing...", 10)
@@ -140,12 +169,15 @@ def process_file_simple(app, session_id):
             
             update_progress("Processing completed, starting export...", 80)
             
-            # Export files using stored config
+            # 🔧 CRITICAL FIX: Use Flask's configured download folder
+            download_folder = current_app.config['DOWNLOAD_FOLDER']
+            
+            print(f"✅ Using download folder: {download_folder}")
+            print(f"✅ Folder exists: {os.path.exists(download_folder)}")
+            
+            # Export files
             exporter = ExportHandler()
             filename_base = f"processed_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-            
-            # Use stored download folder instead of current_app
-            download_folder = config['download_folder']
             
             # Handle export formats
             if config['export_formats'] == 'both':
@@ -153,9 +185,10 @@ def process_file_simple(app, session_id):
             else:
                 export_formats = [config['export_formats']]
             
+            # 🔧 CRITICAL: Pass the Flask configured folder directly
             export_results = exporter.export_data(
                 results['dataframe'],
-                download_folder,
+                download_folder,  # This should be /home/jsapo/Documents/bibliotecario/downloads
                 filename_base,
                 export_formats
             )
@@ -177,15 +210,25 @@ def process_file_simple(app, session_id):
             
             update_progress("All processing completed!", 100)
             
+            # 🔧 DEBUG: Print exactly what files were created and where
+            print("📁 Export completed. Files created:")
+            if 'results' in config and 'download_info' in config['results']:
+                for file_info in config['results']['download_info']['files']:
+                    file_path = file_info['path']
+                    print(f"  ✅ {file_info['format']}: {file_path}")
+                    print(f"      Exists: {os.path.exists(file_path)}")
+                    print(f"      Size: {file_info.get('size_mb', 'Unknown')} MB")
+            
             # Cleanup
             try:
                 os.remove(config['file_path'])
+                print(f"🗑️ Cleaned up uploaded file: {config['file_path']}")
             except Exception as e:
-                print(f"Cleanup warning: {str(e)}")
+                print(f"⚠️ Cleanup warning: {str(e)}")
                 
         except Exception as e:
             error_msg = f"Error: {str(e)}"
-            print(f"Processing error: {error_msg}")
+            print(f"❌ Processing error: {error_msg}")
             print(traceback.format_exc())
             
             config.update({

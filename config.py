@@ -2,7 +2,7 @@ import os
 from datetime import timedelta
 
 class Config:
-    SECRET_KEY = os.environ.get('SECRET_KEY') or 'your-secret-key-here-change-in-production'
+    SECRET_KEY = '94057dcfa25f20dc4fe94576381e10115ffc907ae506b2d7'
     
     # File upload settings
     MAX_CONTENT_LENGTH = 100 * 1024 * 1024  # 100MB max file size

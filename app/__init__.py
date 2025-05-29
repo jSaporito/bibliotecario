@@ -9,10 +9,13 @@ def create_app():
                 template_folder='../templates',  # Point to templates folder
                 static_folder='../static')        # Point to static folder
     
-    # Basic config
+    # Get the project root (one level up from app/)
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    
+    # Basic config with ABSOLUTE PATHS
     app.config.update({
-        'UPLOAD_FOLDER': 'uploads',
-        'DOWNLOAD_FOLDER': 'downloads',
+        'UPLOAD_FOLDER': os.path.join(project_root, 'uploads'),
+        'DOWNLOAD_FOLDER': os.path.join(project_root, 'downloads'),
         'MAX_CONTENT_LENGTH': 100 * 1024 * 1024,  # 100MB
         'SECRET_KEY': 'dev-secret-key-change-in-production'
     })
