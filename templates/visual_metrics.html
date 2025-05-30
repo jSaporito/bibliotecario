@@ -1,0 +1,469 @@
+{% extends "base.html" %}
+
+{% block title %}Business Impact Analysis - Bibliotecario{% endblock %}
+
+{% block extra_css %}
+<style>
+.executive-summary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 15px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+}
+
+.metric-highlight {
+    background: rgba(255,255,255,0.1);
+    border-radius: 10px;
+    padding: 1rem;
+    text-align: center;
+    backdrop-filter: blur(10px);
+}
+
+.chart-container {
+    background: white;
+    border-radius: 15px;
+    padding: 1.5rem;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    margin-bottom: 2rem;
+}
+
+.business-metric {
+    text-align: center;
+    padding: 1.5rem;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-radius: 15px;
+    border-left: 5px solid #007bff;
+    transition: transform 0.3s ease;
+}
+
+.business-metric:hover {
+    transform: translateY(-5px);
+}
+
+.roi-highlight {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    color: white;
+    border-radius: 15px;
+    padding: 2rem;
+    text-align: center;
+}
+
+.competitive-advantage {
+    background: linear-gradient(135deg, #6f42c1 0%, #e83e8c 100%);
+    color: white;
+    border-radius: 15px;
+    padding: 1.5rem;
+}
+
+@media print {
+    .btn, .navbar { display: none !important; }
+    .chart-container { page-break-inside: avoid; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <!-- Executive Summary Header -->
+        <div class="executive-summary">
+            <div class="text-center mb-4">
+                <h1 class="display-4 mb-3">
+                    <i class="fas fa-chart-line me-3"></i>
+                    Business Impact Analysis
+                </h1>
+                <p class="lead">
+                    Quantified Benefits of Bibliotecario Text Processing Solution
+                </p>
+                <small class="opacity-75">
+                    Analysis based on {{ "{:,}".format(analysis_data.sample_info.total_file_rows) }} 
+                    row dataset with {{ "{:,}".format(analysis_data.sample_info.actual_size) }} sample analysis
+                </small>
+            </div>
+            
+            <!-- Key Metrics -->
+            <div class="row">
+                {% for metric, value in executive_summary.key_metrics.items() %}
+                <div class="col-md-3 mb-3">
+                    <div class="metric-highlight">
+                        <h3 class="mb-1">{{ value }}</h3>
+                        <small>{{ metric.replace('_', ' ').title() }}</small>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            
+            <!-- Headline Benefits -->
+            <div class="mt-4">
+                <h5 class="mb-3">
+                    <i class="fas fa-star me-2"></i>Key Benefits
+                </h5>
+                <div class="row">
+                    {% for benefit in executive_summary.headline_benefits %}
+                    <div class="col-md-6 mb-2">
+                        <i class="fas fa-check-circle me-2"></i>{{ benefit }}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Key Benefits -->
+        <div class="card mb-4">
+            <div class="card-header bg-success text-white">
+                <h4 class="mb-0">
+                    <i class="fas fa-star me-2"></i>
+                    Key Business Benefits
+                </h4>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% for benefit in executive_summary.headline_benefits %}
+                    <div class="col-md-6 mb-3">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-check-circle fa-2x me-3 text-success"></i>
+                            <h5 class="mb-0">{{ benefit }}</h5>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Analysis Results -->
+        <div class="row mb-4">
+            <div class="col-lg-6">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-database me-2"></i>
+                            Data Processing Impact
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row text-center">
+                            <div class="col-6">
+                                <h3 class="text-primary">{{ "{:,}".format(analysis_data.sample_info.total_file_rows) }}</h3>
+                                <small>Total Rows</small>
+                            </div>
+                            <div class="col-6">
+                                <h3 class="text-success">{{ metrics.business_impact.quality_improvements.data_reduction }}</h3>
+                                <small>Data Reduction</small>
+                            </div>
+                        </div>
+                        <hr>
+                        <div class="row text-center">
+                            <div class="col-6">
+                                <h4 class="text-info">{{ analysis_data.recommendations.extraction_potential.total_fields_found }}</h4>
+                                <small>Fields Extracted</small>
+                            </div>
+                            <div class="col-6">
+                                <h4 class="text-warning">{{ analysis_data.recommendations.extraction_potential.fields_per_record }}</h4>
+                                <small>Fields per Record</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-6">
+                <div class="card">
+                    <div class="card-header bg-warning text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-dollar-sign me-2"></i>
+                            Financial Impact
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row text-center">
+                            <div class="col-6">
+                                <h3 class="text-success">${{ "{:,}".format(metrics.roi_analysis.returns.annual_savings) }}</h3>
+                                <small>Annual Savings</small>
+                            </div>
+                            <div class="col-6">
+                                <h3 class="text-primary">{{ metrics.roi_analysis.returns.roi_percentage }}%</h3>
+                                <small>ROI</small>
+                            </div>
+                        </div>
+                        <hr>
+                        <div class="row text-center">
+                            <div class="col-6">
+                                <h4 class="text-info">{{ metrics.roi_analysis.returns.payback_months }}</h4>
+                                <small>Months to Payback</small>
+                            </div>
+                            <div class="col-6">
+                                <h4 class="text-warning">${{ "{:,}".format(metrics.roi_analysis.returns.net_benefit_year1) }}</h4>
+                                <small>Year 1 Net Benefit</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Efficiency Improvements -->
+        <div class="card mb-4">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-tachometer-alt me-2"></i>
+                    Efficiency Improvements
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4 text-center mb-3">
+                        <i class="fas fa-rocket fa-3x text-primary mb-2"></i>
+                        <h5>{{ metrics.efficiency_gains.processing_speed }}</h5>
+                        <small class="text-muted">Processing Speed</small>
+                    </div>
+                    <div class="col-md-4 text-center mb-3">
+                        <i class="fas fa-bullseye fa-3x text-success mb-2"></i>
+                        <h5>{{ metrics.efficiency_gains.accuracy_improvement }}</h5>
+                        <small class="text-muted">Accuracy Improvement</small>
+                    </div>
+                    <div class="col-md-4 text-center mb-3">
+                        <i class="fas fa-shield-alt fa-3x text-info mb-2"></i>
+                        <h5>{{ metrics.efficiency_gains.consistency }}</h5>
+                        <small class="text-muted">Result Consistency</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Investment Analysis -->
+        <div class="card mb-4">
+            <div class="card-header bg-secondary text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-calculator me-2"></i>
+                    Investment Analysis
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6 class="text-primary mb-3">Investment Breakdown</h6>
+                        <div class="list-group">
+                            <div class="list-group-item d-flex justify-content-between">
+                                <span>Software License (Annual)</span>
+                                <strong>${{ "{:,}".format(metrics.roi_analysis.investment.software_annual) }}</strong>
+                            </div>
+                            <div class="list-group-item d-flex justify-content-between">
+                                <span>Training (One-time)</span>
+                                <strong>${{ "{:,}".format(metrics.roi_analysis.investment.training_onetime) }}</strong>
+                            </div>
+                            <div class="list-group-item d-flex justify-content-between">
+                                <span>Setup & Integration</span>
+                                <strong>${{ "{:,}".format(metrics.roi_analysis.investment.setup_onetime) }}</strong>
+                            </div>
+                            <div class="list-group-item d-flex justify-content-between bg-light">
+                                <strong>Total First Year</strong>
+                                <strong>${{ "{:,}".format(metrics.roi_analysis.investment.total_first_year) }}</strong>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="text-success mb-3">Return Analysis</h6>
+                        <div class="list-group">
+                            <div class="list-group-item d-flex justify-content-between">
+                                <span>Annual Savings</span>
+                                <strong class="text-success">${{ "{:,}".format(metrics.roi_analysis.returns.annual_savings) }}</strong>
+                            </div>
+                            <div class="list-group-item d-flex justify-content-between">
+                                <span>Monthly Savings</span>
+                                <strong class="text-success">${{ "{:,}".format(metrics.roi_analysis.break_even_analysis.monthly_savings) }}</strong>
+                            </div>
+                            <div class="list-group-item d-flex justify-content-between">
+                                <span>Break-even Period</span>
+                                <strong>{{ metrics.roi_analysis.break_even_analysis.break_even_month }} months</strong>
+                            </div>
+                            <div class="list-group-item d-flex justify-content-between bg-success text-white">
+                                <strong>3-Year Net Benefit</strong>
+                                <strong>${{ "{:,}".format(metrics.roi_analysis.break_even_analysis.cumulative_benefit_3_years) }}</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Competitive Advantages -->
+        <div class="competitive-advantage mb-4">
+            <h5 class="text-center mb-4">
+                <i class="fas fa-trophy me-2"></i>
+                Competitive Advantages
+            </h5>
+            <div class="row">
+                {% for advantage in executive_summary.competitive_advantage %}
+                <div class="col-md-6 mb-3">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-arrow-up fa-2x me-3 text-warning"></i>
+                        <div>
+                            <strong>{{ advantage }}</strong>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Processing Details -->
+        <div class="card mb-4">
+            <div class="card-header bg-dark text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-cogs me-2"></i>
+                    Processing Analysis Details
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <h6 class="text-primary">Sample Analysis</h6>
+                        <ul class="list-unstyled">
+                            <li><strong>Sample Size:</strong> {{ "{:,}".format(analysis_data.sample_info.actual_size) }} rows</li>
+                            <li><strong>Total File Size:</strong> {{ "{:,}".format(analysis_data.sample_info.total_file_rows) }} rows</li>
+                            <li><strong>Data Size:</strong> {{ analysis_data.text_stats.total_mb }} MB</li>
+                            <li><strong>Avg Text Length:</strong> {{ "{:,}".format(analysis_data.text_stats.avg_length) }} chars</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-4">
+                        <h6 class="text-success">Extraction Results</h6>
+                        <ul class="list-unstyled">
+                            <li><strong>Fields Found:</strong> {{ analysis_data.recommendations.extraction_potential.total_fields_found }}</li>
+                            <li><strong>Fields per Record:</strong> {{ analysis_data.recommendations.extraction_potential.fields_per_record }}</li>
+                            <li><strong>Success Rate:</strong> High</li>
+                            <li><strong>Quality:</strong> Excellent</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-4">
+                        <h6 class="text-warning">Processing Optimization</h6>
+                        <ul class="list-unstyled">
+                            <li><strong>Recommended Chunk:</strong> {{ "{:,}".format(analysis_data.recommendations.processing_suggestions.recommended_chunk_size) }} rows</li>
+                            <li><strong>Est. Time:</strong> {{ analysis_data.recommendations.processing_suggestions.estimated_processing_time_minutes }} min</li>
+                            <li><strong>Memory Usage:</strong> 
+                                {% if analysis_data.recommendations.processing_suggestions.memory_usage_warning %}
+                                High
+                                {% else %}
+                                Normal
+                                {% endif %}
+                            </li>
+                            <li><strong>Scalability:</strong> Excellent</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="text-center mb-5">
+            <h4 class="mb-4">Ready to Transform Your Data Processing?</h4>
+            <div class="d-flex justify-content-center gap-3 flex-wrap">
+                <a href="{{ url_for('main.upload') }}" class="btn btn-success btn-lg">
+                    <i class="fas fa-rocket me-2"></i>
+                    Start Processing
+                </a>
+                <button class="btn btn-primary btn-lg" onclick="window.print()">
+                    <i class="fas fa-file-pdf me-2"></i>
+                    Save Report
+                </button>
+                <button class="btn btn-outline-info btn-lg" onclick="togglePresentationMode()">
+                    <i class="fas fa-desktop me-2"></i>
+                    Presentation Mode
+                </button>
+                <a href="{{ url_for('main.index') }}" class="btn btn-outline-secondary btn-lg">
+                    <i class="fas fa-home me-2"></i>
+                    Home
+                </a>
+            </div>
+        </div>
+
+        <!-- Footer Note -->
+        <div class="alert alert-info">
+            <h6 class="alert-heading">
+                <i class="fas fa-info-circle me-2"></i>
+                Analysis Summary
+            </h6>
+            <p class="mb-0">
+                This business impact analysis is based on processing <strong>{{ "{:,}".format(analysis_data.sample_info.actual_size) }} sample rows</strong> 
+                from your <strong>{{ "{:,}".format(analysis_data.sample_info.total_file_rows) }} row dataset</strong>. 
+                Results show significant potential for cost savings, efficiency improvements, and ROI through automated text processing 
+                and field extraction with Bibliotecario.
+            </p>
+        </div>
+
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+$(document).ready(function() {
+    // Add entrance animations
+    $('.card').each(function(index) {
+        $(this).css({
+            'opacity': '0',
+            'transform': 'translateY(30px)'
+        });
+        
+        setTimeout(() => {
+            $(this).animate({
+                'opacity': '1'
+            }, 800).css('transform', 'translateY(0)');
+        }, index * 200);
+    });
+    
+    // Add hover effects
+    $('.card').hover(
+        function() {
+            $(this).addClass('shadow-lg');
+        },
+        function() {
+            $(this).removeClass('shadow-lg');
+        }
+    );
+});
+
+function togglePresentationMode() {
+    // Toggle full screen presentation mode
+    if (document.fullscreenElement) {
+        document.exitFullscreen();
+        $('body').removeClass('bg-dark text-light');
+        $('.navbar').show();
+    } else {
+        document.documentElement.requestFullscreen();
+        $('body').addClass('bg-dark text-light');
+        $('.navbar').hide();
+        $('html, body').animate({scrollTop: 0}, 500);
+    }
+}
+
+// Print optimization
+window.addEventListener('beforeprint', function() {
+    $('.btn').hide();
+    $('.card').css('page-break-inside', 'avoid');
+});
+
+window.addEventListener('afterprint', function() {
+    $('.btn').show();
+});
+</script>
+
+<style>
+@media print {
+    .btn, .navbar { display: none !important; }
+    .card { page-break-inside: avoid; }
+    body { background: white !important; }
+}
+
+.bg-dark.text-light .card {
+    background: #2d3748 !important;
+    color: white !important;
+}
+
+.bg-dark.text-light .list-group-item {
+    background: #4a5568 !important;
+    color: white !important;
+    border-color: #666 !important;
+}
+</style>
+{% endblock %}

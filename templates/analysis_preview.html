@@ -31,6 +31,57 @@
     overflow: hidden;
 }
 
+.graphics-button {
+    background: linear-gradient(135deg, #6f42c1 0%, #e83e8c 100%);
+    border: none;
+    color: white;
+    border-radius: 25px;
+    padding: 15px 30px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.graphics-button:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 15px 35px rgba(111, 66, 193, 0.4);
+    color: white;
+}
+
+.graphics-button:before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    transition: left 0.5s;
+}
+
+.graphics-button:hover:before {
+    left: 100%;
+}
+
+.cta-section {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 20px;
+    padding: 2rem;
+    margin: 2rem 0;
+    text-align: center;
+}
+
+.business-impact-preview {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    color: white;
+    border-radius: 15px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+}
+
 @media print {
     .btn, .modal { display: none !important; }
 }
@@ -59,6 +110,36 @@
             </a>
         </div>
         {% else %}
+
+        <!-- Business Impact Preview -->
+        <div class="business-impact-preview">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h4 class="mb-2">
+                        <i class="fas fa-chart-bar me-2"></i>
+                        Business Impact Analysis Available
+                    </h4>
+                    <p class="mb-0">
+                        Generate professional charts showing ROI, cost savings, efficiency gains, 
+                        and competitive advantages. Perfect for executive presentations and budget justification.
+                    </p>
+                </div>
+                <div class="col-md-4 text-center">
+                    {% if session_id %}
+                    <a href="{{ url_for('main.visual_analysis', session_id=session_id) }}" 
+                       class="graphics-button btn btn-lg">
+                        <i class="fas fa-chart-pie me-2"></i>
+                        View Business Graphics
+                    </a>
+                    {% else %}
+                    <button class="graphics-button btn btn-lg" disabled>
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Graphics Unavailable
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
         
         <!-- Sample Information -->
         <div class="card analysis-card mb-4">
@@ -285,6 +366,51 @@
             </div>
         </div>
 
+        <!-- Call to Action Section -->
+        <div class="cta-section">
+            <h3 class="mb-3">
+                <i class="fas fa-rocket me-2"></i>
+                Ready to Unlock Your Data's Potential?
+            </h3>
+            <p class="lead mb-4">
+                Your analysis shows excellent potential for automated processing. 
+                Choose your next step to transform your {{ "{:,}".format(analysis.sample_info.total_file_rows) }} rows of data.
+            </p>
+            
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <div class="d-grid">
+                        {% if session_id %}
+                        <a href="{{ url_for('main.visual_analysis', session_id=session_id) }}" 
+                           class="btn btn-light btn-lg">
+                            <i class="fas fa-chart-bar fa-2x mb-2 d-block"></i>
+                            <strong>Business Graphics</strong><br>
+                            <small>ROI Analysis & Executive Charts</small>
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <div class="d-grid">
+                        <a href="{{ url_for('main.upload') }}" class="btn btn-light btn-lg">
+                            <i class="fas fa-cogs fa-2x mb-2 d-block"></i>
+                            <strong>Full Processing</strong><br>
+                            <small>Process Complete Dataset</small>
+                        </a>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <div class="d-grid">
+                        <button class="btn btn-light btn-lg" onclick="window.print()">
+                            <i class="fas fa-file-pdf fa-2x mb-2 d-block"></i>
+                            <strong>Save Report</strong><br>
+                            <small>Print Analysis Results</small>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Expected Results -->
         <div class="card analysis-card mb-4">
             <div class="card-header bg-success text-white">
@@ -328,70 +454,18 @@
             </div>
         </div>
 
-        <!-- Action Buttons -->
-        <div class="card analysis-card">
-            <div class="card-body text-center">
-                <h5 class="mb-3">Ready to Process Your {{ "{:,}".format(analysis.sample_info.total_file_rows) }} Row Dataset?</h5>
-                <p class="text-muted mb-4">
-                    Based on this analysis, your dataset has 
-                    {% if analysis.recommendations.extraction_potential.total_fields_found > analysis.sample_info.actual_size * 0.5 %}
-                    <strong class="text-success">excellent potential</strong>
-                    {% elif analysis.recommendations.extraction_potential.total_fields_found > analysis.sample_info.actual_size * 0.2 %}
-                    <strong class="text-info">good potential</strong>
-                    {% else %}
-                    <strong class="text-warning">moderate potential</strong>
-                    {% endif %}
-                    for field extraction and will benefit 
-                    {% if analysis.recommendations.cleaning_impact.reduction_percent > 10 %}
-                    <strong class="text-success">significantly</strong>
-                    {% elif analysis.recommendations.cleaning_impact.reduction_percent > 5 %}
-                    <strong class="text-info">moderately</strong>
-                    {% else %}
-                    <strong class="text-muted">minimally</strong>
-                    {% endif %}
-                    from text cleaning.
-                </p>
-                
-                <div class="d-grid gap-2 d-md-flex justify-content-md-center">
-                    <a href="{{ url_for('main.upload') }}" class="btn btn-success btn-lg me-md-2">
-                        <i class="fas fa-rocket me-2"></i>
-                        Process Full Dataset
-                    </a>
-                    <button class="btn btn-outline-info btn-lg me-md-2" onclick="window.print()">
-                        <i class="fas fa-print me-2"></i>
-                        Save Analysis Report
-                    </button>
-                    <button class="btn btn-outline-warning btn-lg me-md-2" 
-                            data-bs-toggle="modal" data-bs-target="#processingTipsModal">
-                        <i class="fas fa-lightbulb me-2"></i>
-                        Processing Tips
-                    </button>
-                    <a href="{{ url_for('main.index') }}" class="btn btn-outline-secondary btn-lg">
-                        <i class="fas fa-home me-2"></i>
-                        Back to Home
-                    </a>
-                </div>
-                
-                <!-- Quick Stats Summary -->
-                <div class="mt-4 p-3 bg-light rounded">
-                    <h6 class="text-primary mb-2">
-                        <i class="fas fa-clipboard-list me-2"></i>Quick Summary
-                    </h6>
-                    <div class="row small">
-                        <div class="col-md-3">
-                            <strong>Cleaning:</strong> {{ analysis.recommendations.cleaning_impact.reduction_percent }}% reduction
-                        </div>
-                        <div class="col-md-3">
-                            <strong>Extraction:</strong> {{ analysis.recommendations.extraction_potential.fields_per_record }} fields/row
-                        </div>
-                        <div class="col-md-3">
-                            <strong>Time:</strong> ~{{ analysis.recommendations.processing_suggestions.estimated_processing_time_minutes }} minutes
-                        </div>
-                        <div class="col-md-3">
-                            <strong>Output:</strong> {{ (analysis.text_stats.total_mb * scale_factor)|round(1) }} MB estimated
-                        </div>
-                    </div>
-                </div>
+        <!-- Navigation Buttons -->
+        <div class="text-center mb-4">
+            <div class="btn-group" role="group">
+                <a href="{{ url_for('main.index') }}" class="btn btn-outline-secondary btn-lg">
+                    <i class="fas fa-home me-2"></i>
+                    Back to Home
+                </a>
+                <button class="btn btn-outline-warning btn-lg" 
+                        data-bs-toggle="modal" data-bs-target="#processingTipsModal">
+                    <i class="fas fa-lightbulb me-2"></i>
+                    Processing Tips
+                </button>
             </div>
         </div>
 
@@ -438,30 +512,25 @@
                     </div>
                 </div>
                 
-                <!-- Optimization Recommendations -->
+                <!-- Business Graphics Info -->
                 <div class="alert alert-info mt-3">
                     <h6 class="alert-heading">
-                        <i class="fas fa-cogs me-2"></i>Recommended Settings:
+                        <i class="fas fa-chart-pie me-2"></i>Business Graphics Feature:
                     </h6>
-                    <ul class="mb-0 small">
-                        <li><strong>Chunk Size:</strong> {{ "{:,}".format(analysis.recommendations.processing_suggestions.recommended_chunk_size) }} rows (optimal for your dataset)</li>
-                        <li><strong>Export Formats:</strong> 
-                            {% if analysis.sample_info.total_file_rows > 50000 %}
-                            CSV + JSON (Excel may be slow for very large datasets)
-                            {% else %}
-                            All formats (CSV + Excel + JSON)
-                            {% endif %}
-                        </li>
-                        <li><strong>Text Cleaning:</strong> Enabled (will save {{ analysis.recommendations.cleaning_impact.estimated_mb_saved }} MB)</li>
-                        <li><strong>Field Extraction:</strong> Enabled ({{ analysis.recommendations.extraction_potential.total_fields_found }} fields found in sample)</li>
-                    </ul>
+                    <p class="mb-0 small">
+                        Click "View Business Graphics" to generate professional charts showing ROI analysis, 
+                        cost savings, efficiency improvements, and competitive advantages. Perfect for 
+                        presenting to executives and justifying software investments.
+                    </p>
                 </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                <a href="{{ url_for('main.upload') }}" class="btn btn-primary">
-                    <i class="fas fa-rocket me-2"></i>Start Processing
+                {% if session_id %}
+                <a href="{{ url_for('main.visual_analysis', session_id=session_id) }}" class="btn btn-primary">
+                    <i class="fas fa-chart-bar me-2"></i>View Business Graphics
                 </a>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -501,17 +570,18 @@ $(document).ready(function() {
     // Scroll to top on page load
     $('html, body').animate({scrollTop: 0}, 'slow');
     
-    // Add copy functionality for quick stats
-    $('.bg-light.rounded').click(function() {
-        const text = $(this).text();
-        if (navigator.clipboard) {
-            navigator.clipboard.writeText(text);
-            $(this).append('<small class="text-success d-block mt-1">Stats copied to clipboard!</small>');
-            setTimeout(() => {
-                $(this).find('small').fadeOut();
-            }, 2000);
-        }
+    // Enhanced graphics button effects
+    $('.graphics-button').on('click', function() {
+        $(this).html('<i class="fas fa-spinner fa-spin me-2"></i>Loading Graphics...');
     });
+    
+    // Add pulse animation to the graphics button
+    setInterval(function() {
+        $('.graphics-button').addClass('pulse');
+        setTimeout(function() {
+            $('.graphics-button').removeClass('pulse');
+        }, 1000);
+    }, 3000);
 });
 
 // Print optimization
@@ -523,5 +593,18 @@ window.addEventListener('beforeprint', function() {
 window.addEventListener('afterprint', function() {
     $('.btn').show();
 });
+
+// Add pulse animation class
+$('<style>').prop('type', 'text/css').html(`
+.pulse {
+    animation: pulse-animation 1s infinite;
+}
+
+@keyframes pulse-animation {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+`).appendTo('head');
 </script>
 {% endblock %}

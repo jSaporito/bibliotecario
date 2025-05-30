@@ -3,8 +3,8 @@ from flask_wtf.file import FileField, FileAllowed, FileRequired
 from wtforms import StringField, SelectField, IntegerField, BooleanField, SubmitField
 from wtforms.validators import DataRequired, NumberRange
 
-class EnhancedUploadForm(FlaskForm):
-    """Enhanced upload form with new processing options"""
+class UploadForm(FlaskForm):
+    """Enhanced upload form with analysis options"""
     
     file = FileField(
         'CSV File',
@@ -33,14 +33,13 @@ class EnhancedUploadForm(FlaskForm):
         choices=[
             ('csv', 'CSV Only'), 
             ('excel', 'Excel Only'), 
-            ('json', 'JSON Only'),           # ✅ NEW: JSON option
+            ('json', 'JSON Only'),
             ('both', 'CSV + Excel'), 
-            ('all', 'All Formats (CSV + Excel + JSON)')  # ✅ NEW: All formats
+            ('all', 'All Formats (CSV + Excel + JSON)')
         ],
         default='both'
     )
     
-    # ✅ NEW: Enhanced processing options
     enable_cleaning = BooleanField(
         'Enable Advanced Text Cleaning',
         default=True,
