@@ -14,19 +14,19 @@
             <div class="row">
                 <div class="col-md-3">
                     <h4>{{ results.stats.total_rows|default(0) }}</h4>
-                    <small>Rows Processed</small>
+                    <small>Linhas Processadas</small>
                 </div>
                 <div class="col-md-3">
                     <h4>{{ results.stats.extracted_fields|default(0) }}</h4>
-                    <small>Fields Extracted</small>
+                    <small>Campos Extraídos</small>
                 </div>
                 <div class="col-md-3">
                     <h4>{{ results.stats.chunks_processed|default(1) }}</h4>
-                    <small>Chunks Processed</small>
+                    <small>Lotes Processados</small>
                 </div>
                 <div class="col-md-3">
                     <h4>{{ results.download_info.total_files|default(0) }}</h4>
-                    <small>Export Formats</small>
+                    <small>Formatos de Exportação</small>
                 </div>
             </div>
         </div>
@@ -56,7 +56,7 @@
                                         <i class="fas fa-file-code fa-3x text-info mb-3"></i>
                                         {% endif %}
 
-                                        <h6>{{ file.format }} Format</h6>
+                                        <h6>{{ file.format }} Formato</h6>
                                         <p class="text-muted small">{{ file.size_mb }} MB</p>
 
                                         <a href="{{ url_for('main.download', session_id=session_id, format=file.format.lower()) }}"
@@ -72,7 +72,7 @@
 
                         <div class="alert alert-info mt-3">
                             <i class="fas fa-info-circle me-2"></i>
-                            <strong>Files ready for download!</strong>
+                            <strong>Arquivos prontos para download!</strong>
                             Files will be available for 24 hours.
                         </div>
                         {% else %}
@@ -96,28 +96,28 @@
                     </div>
                     <div class="card-body">
                         <div class="mb-3">
-                            <strong>Total Rows:</strong><br>
+                            <strong>Total de Linhas:</strong><br>
                             <small class="text-muted">
                                 {{ "{:,}".format(results.stats.total_rows|default(0)) }} rows processed
                             </small>
                         </div>
 
                         <div class="mb-3">
-                            <strong>Fields Extracted:</strong><br>
+                            <strong>Campos Extraídos:</strong><br>
                             <small class="text-muted">
                                 {{ results.stats.extracted_fields|default(0) }} different field types found
                             </small>
                         </div>
 
                         <div class="mb-3">
-                            <strong>Processing Time:</strong><br>
+                            <strong>Tempo de Processamento:</strong><br>
                             <small class="text-muted">
                                 {{ results.stats.processing_time|default('Unknown') }}
                             </small>
                         </div>
 
                         <div>
-                            <strong>Export Status:</strong><br>
+                            <strong>Status da Exportação:</strong><br>
                             {% if results.download_info and results.download_info.files %}
                             {% for file in results.download_info.files %}
                             <span class="badge bg-success me-1">{{ file.format }}</span>
@@ -143,7 +143,7 @@
                 {% if results.stats %}
                 <div class="row">
                     <div class="col-md-6">
-                        <h6 class="text-primary">Processing Details:</h6>
+                        <h6 class="text-primary">Detalhes do Processamento:</h6>
                         <ul class="list-unstyled">
                             <li><i class="fas fa-check text-success me-2"></i>
                                 <strong>{{ results.stats.total_rows|default(0) }}</strong> rows processed successfully
@@ -157,16 +157,16 @@
                         </ul>
                     </div>
                     <div class="col-md-6">
-                        <h6 class="text-primary">Available Fields:</h6>
+                        <h6 class="text-primary">Campos Disponíveis:</h6>
                         <div class="mb-2">
-                            <small class="text-muted">Common network configuration fields that were processed:</small>
+                            <small class="text-muted">Campos comuns de configuração de rede que foram processados:</small>
                         </div>
                         <div>
-                            <span class="badge bg-secondary me-1 mb-1">IP Addresses</span>
+                            <span class="badge bg-secondary me-1 mb-1">Endereços IP</span>
                             <span class="badge bg-secondary me-1 mb-1">VLANs</span>
                             <span class="badge bg-secondary me-1 mb-1">ASN Numbers</span>
-                            <span class="badge bg-secondary me-1 mb-1">MAC Addresses</span>
-                            <span class="badge bg-secondary me-1 mb-1">Serial Numbers</span>
+                            <span class="badge bg-secondary me-1 mb-1">Endereços MAC</span>
+                            <span class="badge bg-secondary me-1 mb-1">Números de Série</span>
                             <span class="badge bg-secondary me-1 mb-1">Gateway IPs</span>
                             <span class="badge bg-secondary me-1 mb-1">Network Equipment</span>
                             <span class="badge bg-secondary me-1 mb-1">+More Fields</span>
@@ -190,6 +190,11 @@
                     Process Another File
                 </a>
             </div>
+            <a href="{{ url_for('main.data_visualization', session_id=session_id) }}" 
+            class="btn btn-success">
+                <i class="fas fa-chart-bar me-2"></i>
+                Ver Análise Visual
+            </a>
             <div class="col-md-6 text-md-end">
                 <button class="btn btn-outline-secondary" onclick="window.history.back()">
                     <i class="fas fa-arrow-left me-2"></i>

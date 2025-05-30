@@ -17,7 +17,7 @@
         <!-- Upload Form -->
         <div class="card shadow">
             <div class="card-header bg-primary text-white">
-                <h5 class="mb-0">File Upload & Configuration</h5>
+                <h5 class="mb-0">Upload de Arquivo e Configuração</h5>
             </div>
             <div class="card-body">
                 <form method="POST" enctype="multipart/form-data" id="uploadForm">
@@ -88,7 +88,7 @@
                     <div class="mb-4">
                         <div class="card bg-light">
                             <div class="card-body">
-                                <h6 class="card-title">Processing Features</h6>
+                                <h6 class="card-title">Recursos de Processamento</h6>
                                 <div class="form-check">
                                     {{ form.enable_cleaning(class="form-check-input") }}
                                     <label class="form-check-label" for="{{ form.enable_cleaning.id }}">
@@ -181,7 +181,7 @@
                                 </div>
                                 <div class="modal-footer">
                                     <button type="button" class="btn btn-secondary"
-                                        data-bs-dismiss="modal">Close</button>
+                                        data-bs-dismiss="modal">Fechar</button>
                                     <button type="button" class="btn btn-primary" data-bs-dismiss="modal"
                                         onclick="$('#analyzeBtn').click();">
                                         <i class="fas fa-chart-line me-2"></i>
@@ -198,31 +198,31 @@
         <!-- Processing Info -->
         <div class="card mt-4 border-info">
             <div class="card-header bg-info text-white">
-                <h6 class="mb-0"><i class="fas fa-info-circle me-2"></i>What happens next?</h6>
+                <h6 class="mb-0"><i class="fas fa-info-circle me-2"></i>O que acontece a seguir?</h6>
             </div>
             <div class="card-body">
                 <div class="row">
                     <div class="col-md-6">
-                        <h6 class="text-info">Processing Steps:</h6>
+                        <h6 class="text-info">Processando Steps:</h6>
                         <ol class="small">
-                            <li>File validation and upload</li>
-                            <li>Text cleaning and sanitization</li>
-                            <li>Pattern recognition and extraction</li>
-                            <li>Data validation and formatting</li>
-                            <li>Export to selected formats</li>
+                            <li>Validação e upload do arquivo</li>
+                            <li>Limpeza e sanitização do texto</li>
+                            <li>Reconhecimento de padrões e extração</li>
+                            <li>Validação e formatação dos dados</li>
+                            <li>Exportar para formatos selecionados</li>
                         </ol>
                     </div>
                     <div class="col-md-6">
-                        <h6 class="text-info">Extracted Fields:</h6>
+                        <h6 class="text-info">Campos Extraídos:</h6>
                         <div class="small">
-                            <span class="badge bg-secondary me-1">IP Addresses</span>
+                            <span class="badge bg-secondary me-1">Endereços IP</span>
                             <span class="badge bg-secondary me-1">VLANs</span>
-                            <span class="badge bg-secondary me-1">MAC Addresses</span>
-                            <span class="badge bg-secondary me-1">Serial Numbers</span>
+                            <span class="badge bg-secondary me-1">Endereços MAC</span>
+                            <span class="badge bg-secondary me-1">Números de Série</span>
                             <span class="badge bg-secondary me-1">ASN</span>
                             <span class="badge bg-secondary me-1">Gateways</span>
-                            <span class="badge bg-secondary me-1">CPE Info</span>
-                            <span class="badge bg-secondary me-1">+20 more</span>
+                            <span class="badge bg-secondary me-1">Informações CPE</span>
+                            <span class="badge bg-secondary me-1">+20 mais</span>
                         </div>
                     </div>
                 </div>

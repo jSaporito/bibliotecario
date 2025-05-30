@@ -21,16 +21,15 @@ class VisualMetricsAnalyzer:
         self.setup_plot_style()
         
     def setup_plot_style(self):
-        """Setup professional plot styling"""
         sns.set_style("whitegrid")
         plt.rcParams.update({
-            'figure.figsize': (12, 8),
-            'font.size': 12,
-            'axes.titlesize': 16,
-            'axes.labelsize': 14,
-            'xtick.labelsize': 12,
-            'ytick.labelsize': 12,
-            'legend.fontsize': 12,
+            'figure.figsize': (10, 6),  # Reduzido de (12, 8)
+            'font.size': 10,           # Reduzido de 12
+            'axes.titlesize': 12,      # Reduzido de 14
+            'axes.labelsize': 10,      # Reduzido de 12
+            'xtick.labelsize': 9,      # Reduzido de 10
+            'ytick.labelsize': 9,      # Reduzido de 10
+            'legend.fontsize': 9,      # Reduzido de 11
             'font.family': 'sans-serif',
             'axes.grid': True,
             'grid.alpha': 0.3
@@ -64,7 +63,7 @@ class VisualMetricsAnalyzer:
     
     def create_data_quality_chart(self, analysis_data):
         """Before/After Data Quality Comparison"""
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(8, 4))
         
         # Before - Raw Data Quality Issues
         before_issues = {
@@ -148,7 +147,7 @@ class VisualMetricsAnalyzer:
     
     def create_field_extraction_chart(self, analysis_data):
         """Field Extraction Success Visualization"""
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 8))
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 2))
         
         # Extract field data
         field_data = analysis_data['field_analysis']
@@ -195,7 +194,7 @@ class VisualMetricsAnalyzer:
     
     def create_cost_savings_chart(self, analysis_data, sample_size):
         """Cost Savings and ROI Visualization"""
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 8))
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(8, 4))
         
         # Calculate cost savings (hypothetical business values)
         total_rows = analysis_data['sample_info']['total_file_rows']
@@ -302,7 +301,7 @@ class VisualMetricsAnalyzer:
     
     def create_storage_optimization_chart(self, analysis_data):
         """Storage and Data Optimization Visualization"""
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 8))
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(8, 4))
         
         # Storage optimization
         original_size = analysis_data['text_stats']['total_mb']
@@ -463,7 +462,7 @@ class VisualMetricsAnalyzer:
     def fig_to_base64(self, fig):
         """Convert matplotlib figure to base64 string for web display"""
         img_buffer = io.BytesIO()
-        fig.savefig(img_buffer, format='png', dpi=300, bbox_inches='tight', 
+        fig.savefig(img_buffer, format='png', dpi=150, bbox_inches='tight', 
                    facecolor='white', edgecolor='none')
         img_buffer.seek(0)
         img_string = base64.b64encode(img_buffer.read()).decode()

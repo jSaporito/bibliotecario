@@ -120,8 +120,7 @@
                         Business Impact Analysis Available
                     </h4>
                     <p class="mb-0">
-                        Generate professional charts showing ROI, cost savings, efficiency gains, 
-                        and competitive advantages. Perfect for executive presentations and budget justification.
+                        Gere gráficos profissionais mostrando ROI, economia de custos, ganhos de eficiência e vantagens competitivas. Perfect for executive presentations and budget justification.
                     </p>
                 </div>
                 <div class="col-md-4 text-center">
@@ -154,25 +153,25 @@
                     <div class="col-md-3">
                         <div class="metric-box">
                             <h4 class="text-info">{{ "{:,}".format(analysis.sample_info.actual_size) }}</h4>
-                            <small>Rows Analyzed</small>
+                            <small>Linhas Analisadas</small>
                         </div>
                     </div>
                     <div class="col-md-3">
                         <div class="metric-box">
                             <h4 class="text-info">{{ "{:,}".format(analysis.sample_info.total_file_rows) }}</h4>
-                            <small>Total File Rows</small>
+                            <small>Total de Linhas do Arquivo</small>
                         </div>
                     </div>
                     <div class="col-md-3">
                         <div class="metric-box">
                             <h4 class="text-info">{{ analysis.text_stats.total_mb }} MB</h4>
-                            <small>Sample Data Size</small>
+                            <small>Tamanho da Amostra de Dados</small>
                         </div>
                     </div>
                     <div class="col-md-3">
                         <div class="metric-box">
                             <h4 class="text-info">{{ "{:,}".format(analysis.text_stats.avg_length) }}</h4>
-                            <small>Avg Text Length</small>
+                            <small>Comprimento Médio do Texto</small>
                         </div>
                     </div>
                 </div>
@@ -192,23 +191,23 @@
                     <div class="card-body">
                         <div class="row">
                             <div class="col-6">
-                                <strong>Average Length:</strong><br>
-                                <span class="text-muted">{{ "{:,}".format(analysis.text_stats.avg_length) }} characters</span>
+                                <strong>Comprimento Médio:</strong><br>
+                                <span class="text-muted">{{ "{:,}".format(analysis.text_stats.avg_length) }} caracteres</span>
                             </div>
                             <div class="col-6">
-                                <strong>Median Length:</strong><br>
-                                <span class="text-muted">{{ "{:,}".format(analysis.text_stats.median_length) }} characters</span>
+                                <strong>Comprimento Mediano:</strong><br>
+                                <span class="text-muted">{{ "{:,}".format(analysis.text_stats.median_length) }} caracteres</span>
                             </div>
                         </div>
                         <hr>
                         <div class="row">
                             <div class="col-6">
-                                <strong>Max Length:</strong><br>
-                                <span class="text-muted">{{ "{:,}".format(analysis.text_stats.max_length) }} characters</span>
+                                <strong>Comprimento Máximo:</strong><br>
+                                <span class="text-muted">{{ "{:,}".format(analysis.text_stats.max_length) }} caracteres</span>
                             </div>
                             <div class="col-6">
-                                <strong>Average Lines:</strong><br>
-                                <span class="text-muted">{{ analysis.text_stats.avg_lines }} lines</span>
+                                <strong>Linhas Médias:</strong><br>
+                                <span class="text-muted">{{ analysis.text_stats.avg_linhas }} linhas</span>
                             </div>
                         </div>
                     </div>
@@ -226,11 +225,11 @@
                     <div class="card-body">
                         <div class="row mb-3">
                             <div class="col-6">
-                                <strong>Text Reduction:</strong><br>
+                                <strong>Redução do Texto:</strong><br>
                                 <span class="text-success fs-4">{{ analysis.recommendations.cleaning_impact.reduction_percent }}%</span>
                             </div>
                             <div class="col-6">
-                                <strong>Space Saved:</strong><br>
+                                <strong>Espaço Economizado:</strong><br>
                                 <span class="text-success">{{ analysis.recommendations.cleaning_impact.estimated_mb_saved }} MB</span>
                             </div>
                         </div>
@@ -295,7 +294,7 @@
                                 <span class="text-success fs-4">{{ "{:,}".format(analysis.recommendations.extraction_potential.total_fields_found) }}</span>
                             </div>
                             <div class="col-6">
-                                <strong>Fields per Record:</strong><br>
+                                <strong>Campos por Registro:</strong><br>
                                 <span class="text-success">{{ analysis.recommendations.extraction_potential.fields_per_record }}</span>
                             </div>
                         </div>
@@ -335,9 +334,9 @@
                     <div class="col-md-4">
                         <div class="metric-box">
                             <i class="fas fa-clock fa-2x text-warning mb-2"></i>
-                            <h6>Est. Processing Time</h6>
+                            <h6>Est. Processando Time</h6>
                             <span class="fs-5 text-warning">{{ analysis.recommendations.processing_suggestions.estimated_processing_time_minutes }}</span>
-                            <small class="d-block text-muted">minutes</small>
+                            <small class="d-block text-muted">minutos</small>
                         </div>
                     </div>
                     <div class="col-md-4">
@@ -373,8 +372,7 @@
                 Ready to Unlock Your Data's Potential?
             </h3>
             <p class="lead mb-4">
-                Your analysis shows excellent potential for automated processing. 
-                Choose your next step to transform your {{ "{:,}".format(analysis.sample_info.total_file_rows) }} rows of data.
+                Your analysis shows excellent potential for automated processing. Choose your next step to transform your {{ "{:,}".format(analysis.sample_info.total_file_rows) }} rows of data.
             </p>
             
             <div class="row">
@@ -394,7 +392,7 @@
                     <div class="d-grid">
                         <a href="{{ url_for('main.upload') }}" class="btn btn-light btn-lg">
                             <i class="fas fa-cogs fa-2x mb-2 d-block"></i>
-                            <strong>Full Processing</strong><br>
+                            <strong>Full Processando</strong><br>
                             <small>Process Complete Dataset</small>
                         </a>
                     </div>
@@ -403,8 +401,8 @@
                     <div class="d-grid">
                         <button class="btn btn-light btn-lg" onclick="window.print()">
                             <i class="fas fa-file-pdf fa-2x mb-2 d-block"></i>
-                            <strong>Save Report</strong><br>
-                            <small>Print Analysis Results</small>
+                            <strong>Salvar Relatório</strong><br>
+                            <small>Imprimir Resultados da Análise</small>
                         </button>
                     </div>
                 </div>
@@ -433,7 +431,7 @@
                         <div class="metric-box">
                             <i class="fas fa-compress-alt fa-2x text-warning mb-2"></i>
                             <h5>{{ (analysis.recommendations.cleaning_impact.estimated_mb_saved * scale_factor)|round(1) }} MB</h5>
-                            <small>Total Space Saved</small>
+                            <small>Total Space Salvard</small>
                         </div>
                     </div>
                     <div class="col-md-3">
@@ -447,7 +445,7 @@
                         <div class="metric-box">
                             <i class="fas fa-file-export fa-2x text-success mb-2"></i>
                             <h5>3</h5>
-                            <small>Export Formats</small>
+                            <small>Formatos de Exportação</small>
                         </div>
                     </div>
                 </div>
@@ -518,14 +516,12 @@
                         <i class="fas fa-chart-pie me-2"></i>Business Graphics Feature:
                     </h6>
                     <p class="mb-0 small">
-                        Click "View Business Graphics" to generate professional charts showing ROI analysis, 
-                        cost savings, efficiency improvements, and competitive advantages. Perfect for 
-                        presenting to executives and justifying software investments.
+                        Click "Ver Gráficos Empresariais" to generate professional charts showing ROI analysis, cost savings, efficiency improvements, and competitive advantages. Perfect for presenting to executives and justifying software investments.
                     </p>
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
                 {% if session_id %}
                 <a href="{{ url_for('main.visual_analysis', session_id=session_id) }}" class="btn btn-primary">
                     <i class="fas fa-chart-bar me-2"></i>View Business Graphics

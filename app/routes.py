@@ -6,7 +6,14 @@ from datetime import datetime
 import threading
 import traceback
 import re
+import pandas as pd  # ← Adicione esta linha se não estiver
 
+# Import your form
+from app.forms import UploadForm
+
+# Import your core modules
+from core.data_processor import EnhancedTelecomDataProcessor
+from core.export_handler import EnhancedExportHandler
 # Import your form
 from app.forms import UploadForm
 
@@ -48,7 +55,7 @@ def upload():
             'export_formats': form.export_formats.data,
             'status': 'processing',
             'progress': 0,
-            'message': 'Starting...',
+            'message': 'Iniciando...',
             'download_folder': current_app.config['DOWNLOAD_FOLDER']
         }
         
@@ -118,14 +125,132 @@ def quick_analysis():
             print(f"❌ Analysis error: {str(e)}")
             return redirect(url_for('main.upload'))
     
-    flash('Please fix the form errors and try again', 'error')
+    flash('Corrija os erros do formulário e tente novamente', 'error')
     return render_template('upload.html', form=form)
+
+@bp.route('/data-visualization/<session_id>')
+def data_visualization(session_id):
+        """Generate and display data visualization analysis"""
+        if session_id not in processing_status:
+            flash('Sessão não encontrada. Execute o processamento primeiro.', 'error')
+            return redirect(url_for('main.upload'))
+        
+        try:
+            config = processing_status[session_id]
+            
+            # Check if processing is completed
+            if config.get('status') != 'completed':
+                flash('Processamento ainda não foi concluído.', 'warning')
+                return redirect(url_for('main.processing', session_id=session_id))
+            
+            # Check if we have the necessary data
+            if 'results' not in config or 'dataframe' not in config['results']:
+                flash('Dados processados não encontrados.', 'error')
+                return redirect(url_for('main.results', session_id=session_id))
+            
+            # Initialize variables
+            original_df = None
+            processed_df = None
+            
+            # Load processed data first (this should always exist)
+            try:
+                processed_df = config['results']['dataframe']
+                print(f"✅ Loaded processed dataframe: {processed_df.shape}")
+            except Exception as e:
+                flash(f'Erro ao carregar dados processados: {str(e)}', 'error')
+                return redirect(url_for('main.results', session_id=session_id))
+            
+            # Load original data for comparison
+            try:
+                original_df = load_original_dataframe(config['file_path'], config['obs_column'])
+                print(f"✅ Loaded original dataframe: {original_df.shape}")
+            except Exception as e:
+                print(f"⚠️  Warning: Could not load original dataframe: {str(e)}")
+                # Create a minimal original dataframe for comparison
+                original_df = pd.DataFrame({config['obs_column']: [''] * len(processed_df)})
+            
+            # Verify we have valid dataframes
+            if original_df is None or original_df.empty:
+                print("⚠️  Creating dummy original dataframe")
+                original_df = pd.DataFrame({config['obs_column']: [''] * max(1, len(processed_df))})
+            
+            if processed_df is None or processed_df.empty:
+                flash('Dados processados estão vazios.', 'error')
+                return redirect(url_for('main.results', session_id=session_id))
+            
+            # Debug info
+            print(f"🔍 Final check - Original: {original_df.shape}, Processed: {processed_df.shape}")
+            
+            # Generate visualization report
+            try:
+                from core.data_visualizer import create_data_visualization_report
+            except ImportError as e:
+                flash(f'Módulo de visualização não encontrado: {str(e)}', 'error')
+                return redirect(url_for('main.results', session_id=session_id))
+            
+            print(f"🎨 Generating visualization report for session {session_id}")
+            visualization_report = create_data_visualization_report(
+                original_df, 
+                processed_df, 
+                config['obs_column']
+            )
+            
+            return render_template('data_visualization.html', 
+                                report=visualization_report,
+                                session_id=session_id)
+            
+        except Exception as e:
+            flash(f'Erro ao gerar visualizações: {str(e)}', 'error')
+            print(f"❌ Visualization error: {str(e)}")
+            import traceback
+            print(traceback.format_exc())
+            return redirect(url_for('main.results', session_id=session_id))
+
+def load_original_dataframe(file_path, obs_column):
+    """Load original dataframe for comparison"""
+    import pandas as pd
+    
+    try:
+        # Check if file exists
+        if not os.path.exists(file_path):
+            print(f"⚠️  Original file not found: {file_path}")
+            return pd.DataFrame()
+        
+        # Try multiple encodings
+        encodings = ['utf-8', 'utf-8-sig', 'latin-1', 'cp1252', 'iso-8859-1']
+        
+        for encoding in encodings:
+            try:
+                df = pd.read_csv(file_path, encoding=encoding, low_memory=False)
+                print(f"✅ Loaded original CSV with {encoding} encoding")
+                return df
+            except (UnicodeDecodeError, UnicodeError):
+                continue
+            except Exception as e:
+                print(f"⚠️  Error with {encoding}: {e}")
+                continue
+        
+        # If all encodings fail, try with python engine
+        try:
+            df = pd.read_csv(file_path, encoding='utf-8', engine='python', low_memory=False)
+            print("✅ Loaded original CSV with python engine")
+            return df
+        except Exception as e:
+            print(f"⚠️  Python engine failed: {e}")
+        
+        # Final fallback - return empty dataframe
+        print("❌ All methods failed, returning empty dataframe")
+        return pd.DataFrame()
+        
+    except Exception as e:
+        print(f"❌ Error loading original dataframe: {str(e)}")
+        return pd.DataFrame()
 
 @bp.route('/visual-analysis/<session_id>')
 def visual_analysis(session_id):
     """Generate visual metrics analysis"""
     if session_id not in processing_status:
-        flash('Session not found. Please run analysis first.', 'error')
+        flash('Sessão não encontrada. Execute a análise primeiro.', 'error')
         return redirect(url_for('main.upload'))
     
     try:
@@ -133,7 +258,7 @@ def visual_analysis(session_id):
         
         # Check if we have analysis data stored
         if 'analysis_data' not in config:
-            flash('Please run analysis first before generating visual metrics', 'warning')
+            flash('Execute a análise primeiro antes de gerar métricas visuais', 'warning')
             return redirect(url_for('main.upload'))
         
         analysis_data = config['analysis_data']
@@ -157,7 +282,7 @@ def visual_analysis(session_id):
 def processing(session_id):
     """Processing status page"""
     if session_id not in processing_status:
-        flash('Invalid session', 'error')
+        flash('Sessão inválida', 'error')
         return redirect(url_for('main.index'))
     return render_template('processing.html', session_id=session_id)
 
@@ -165,7 +290,7 @@ def processing(session_id):
 def get_status(session_id):
     """Get processing status"""
     if session_id not in processing_status:
-        return jsonify({'error': 'Session not found'}), 404
+        return jsonify({'error': 'Sessão não encontrada'}), 404
     
     status = processing_status[session_id]
     return jsonify({
@@ -190,11 +315,11 @@ def results(session_id):
 def download(session_id, format):
     """Download processed files"""
     if session_id not in processing_status:
-        return jsonify({'error': 'Session not found'}), 404
+        return jsonify({'error': 'Sessão não encontrada'}), 404
     
     status = processing_status[session_id]
     if status['status'] != 'completed':
-        return jsonify({'error': 'Processing not completed'}), 400
+        return jsonify({'error': 'Processamento não concluído'}), 400
     
     # Find and serve the requested file
     if 'results' in status and 'download_info' in status['results']:
@@ -204,7 +329,7 @@ def download(session_id, format):
                 if os.path.exists(file_path):
                     return send_file(file_path, as_attachment=True)
     
-    return jsonify({'error': 'File not found'}), 404
+    return jsonify({'error': 'Arquivo não encontrado'}), 404
 
 # HELPER FUNCTIONS
 
@@ -462,10 +587,10 @@ def create_mock_executive_summary(analysis_data):
             'payback': '2.6 months'
         },
         'competitive_advantage': [
-            "Faster time-to-insight for business decisions",
-            "Higher data quality and consistency",
-            "Scalable solution for growing data volumes",
-            "Reduced dependency on manual processes"
+            'Tempo mais rápido para insights em decisões empresariais',
+            'Maior qualidade e consistência dos dados',
+            'Solução escalável para volumes crescentes de dados',
+            'Dependência reduzida de processos manuais'
         ]
     }
 
@@ -526,13 +651,11 @@ def process_file_simple(app, session_id):
                 'message': 'Processing completed successfully!',
                 'results': {
                     'stats': results['stats'],
+                    'dataframe': results['dataframe'],  # Adicione esta linha
                     'download_info': exporter.create_download_info(export_results)
                 }
             })
-            
             update_progress("All processing completed!", 100)
-            
-            # Cleanup
             try:
                 os.remove(config['file_path'])
                 print(f"🗑️ Cleaned up uploaded file: {config['file_path']}")

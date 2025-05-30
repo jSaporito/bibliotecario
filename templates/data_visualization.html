@@ -1,0 +1,774 @@
+{% extends "base.html" %}
+
+{% block title %}Análise Visual de Dados - Bibliotecario{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ===== CHART IMAGE STYLES - UNIFIED ===== */
+/* EMERGENCY FIX - FORCE TINY IMAGES */
+.chart-image,
+img,
+.chart-container img,
+.card-body img,
+[src*="data:image"] {
+    max-width: 300px !important;
+    max-height: 200px !important;
+    width: 300px !important;
+    height: 200px !important;
+    object-fit: contain !important;
+    display: block !important;
+    margin: 10px auto !important;
+    transform: scale(0.7) !important;
+}
+
+
+.chart-image:hover {
+    transform: scale(1.02);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .chart-image {
+        max-width: 100% !important;
+        max-height: 200px !important;
+        margin: 10px auto;
+    }
+}
+
+@media (max-width: 480px) {
+    .chart-image {
+        max-height: 150px !important;
+        margin: 8px auto;
+    }
+}
+
+/* ===== VISUALIZATION CARDS ===== */
+.visualization-card {
+    border-radius: 15px;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+    transition: transform 0.3s ease;
+    margin-bottom: 2rem;
+    max-width: 100%;
+    overflow: hidden;
+}
+
+.visualization-card:hover {
+    transform: translateY(-5px);
+}
+
+.chart-container {
+    position: relative;
+    overflow: hidden;
+    border-radius: 10px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 15px;
+    background: #f8f9fa;
+}
+
+/* ===== INSIGHT CARDS ===== */
+.insight-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 15px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.insight-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="20" cy="20" r="2" fill="white" opacity="0.1"/><circle cx="80" cy="40" r="1" fill="white" opacity="0.1"/><circle cx="40" cy="80" r="1.5" fill="white" opacity="0.1"/></svg>');
+    opacity: 0.3;
+}
+
+.insight-content {
+    position: relative;
+    z-index: 2;
+}
+
+.metric-highlight {
+    background: rgba(255,255,255,0.2);
+    border-radius: 10px;
+    padding: 1rem;
+    text-align: center;
+    backdrop-filter: blur(10px);
+    margin-top: 1rem;
+}
+
+/* ===== STATS GRID ===== */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.stat-box {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-radius: 15px;
+    padding: 1.5rem;
+    text-align: center;
+    border-left: 5px solid #007bff;
+}
+
+.stat-number {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #007bff;
+    margin-bottom: 0.5rem;
+}
+
+.stat-label {
+    color: #6c757d;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+/* ===== COMPARISON SECTION ===== */
+.comparison-section {
+    background: linear-gradient(135deg, #e8f5e8 0%, #f0f8f0 100%);
+    border-radius: 20px;
+    padding: 2rem;
+    margin: 2rem 0;
+    border: 3px solid #28a745;
+}
+
+.improvement-badge {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    background: #28a745;
+    color: white;
+    padding: 8px 12px;
+    border-radius: 15px;
+    font-weight: bold;
+    font-size: 0.8rem;
+    z-index: 10;
+}
+
+/* ===== DOWNLOAD SECTION ===== */
+.download-section {
+    background: linear-gradient(135deg, #2d3748 0%, #4a5568 100%);
+    color: white;
+    border-radius: 20px;
+    padding: 2rem;
+    text-align: center;
+    margin: 2rem 0;
+}
+
+.btn-download {
+    background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+    border: none;
+    color: white;
+    padding: 1rem 2rem;
+    border-radius: 25px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    margin: 0.5rem;
+}
+
+.btn-download:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 20px rgba(72, 187, 120, 0.4);
+    color: white;
+}
+
+/* ===== FULLSCREEN MODAL ===== */
+.fullscreen-chart {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0,0,0,0.9);
+    z-index: 9999;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 2rem;
+}
+
+.fullscreen-chart img {
+    max-width: 95%;
+    max-height: 95%;
+    object-fit: contain;
+}
+
+.close-fullscreen {
+    position: absolute;
+    top: 20px;
+    right: 30px;
+    color: white;
+    font-size: 3rem;
+    cursor: pointer;
+    z-index: 10000;
+}
+
+/* ===== ANIMATIONS ===== */
+.fade-in {
+    animation: fadeIn 0.8s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.slide-in-left {
+    animation: slideInLeft 0.8s ease-out;
+}
+
+@keyframes slideInLeft {
+    from { opacity: 0; transform: translateX(-50px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+.pulse-highlight {
+    animation: pulseHighlight 2s infinite;
+}
+
+@keyframes pulseHighlight {
+    0%, 100% { background-color: rgba(40, 167, 69, 0.1); }
+    50% { background-color: rgba(40, 167, 69, 0.3); }
+}
+
+/* ===== RESPONSIVE ADJUSTMENTS ===== */
+@media (max-width: 768px) {
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .chart-container {
+        padding: 10px;
+    }
+    
+    .insight-card {
+        padding: 1rem;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header Section -->
+    <div class="text-center mb-5">
+        <h1 class="display-4 text-primary mb-3">
+            <i class="fas fa-chart-bar me-3"></i>
+            Análise Visual de Extração de Dados
+        </h1>
+        <p class="lead text-muted">
+            Visualização completa do impacto do processamento nos seus dados
+        </p>
+        <small class="text-muted">
+            Análise baseada em {{ "{:,}".format(report.analysis_data.original_stats.total_rows) }} registros processados
+        </small>
+    </div>
+
+    <!-- Key Insights Section -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <h2 class="mb-4">
+                <i class="fas fa-lightbulb me-2"></i>
+                Principais Insights
+            </h2>
+            <div class="row">
+                {% for insight in report.summary_insights[:4] %}
+                <div class="col-md-6 col-lg-3 mb-3">
+                    <div class="insight-card fade-in" style="animation-delay: {{ loop.index0 * 0.2 }}s;">
+                        <div class="insight-content">
+                            <h5 class="mb-2">
+                                {% if insight.type == 'improvement' %}
+                                <i class="fas fa-arrow-up me-2"></i>
+                                {% elif insight.type == 'completeness' %}
+                                <i class="fas fa-chart-pie me-2"></i>
+                                {% elif insight.type == 'extraction' %}
+                                <i class="fas fa-search-plus me-2"></i>
+                                {% else %}
+                                <i class="fas fa-star me-2"></i>
+                                {% endif %}
+                                {{ insight.title }}
+                            </h5>
+                            <p class="mb-0 small">{{ insight.description }}</p>
+                            <div class="metric-highlight">
+                                <strong>{{ insight.metric }}</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Statistics -->
+    <div class="stats-grid">
+        <div class="stat-box slide-in-left">
+            <div class="stat-number">{{ "{:,}".format(report.analysis_data.extraction_impact.original_filled_cells) }}</div>
+            <div class="stat-label">Dados Originais</div>
+        </div>
+        <div class="stat-box slide-in-left" style="animation-delay: 0.1s;">
+            <div class="stat-number">{{ "{:,}".format(report.analysis_data.extraction_impact.processed_filled_cells) }}</div>
+            <div class="stat-label">Dados Processados</div>
+        </div>
+        <div class="stat-box slide-in-left" style="animation-delay: 0.2s;">
+            <div class="stat-number">+{{ "{:,}".format(report.analysis_data.extraction_impact.new_data_points) }}</div>
+            <div class="stat-label">Novos Dados Extraídos</div>
+        </div>
+        <div class="stat-box slide-in-left" style="animation-delay: 0.3s;">
+            <div class="stat-number">{{ report.analysis_data.processed_stats.extracted_columns }}</div>
+            <div class="stat-label">Novos Campos Criados</div>
+        </div>
+    </div>
+
+    <!-- Main Comparison Section -->
+    <div class="comparison-section pulse-highlight">
+        <h2 class="text-center mb-4 text-success">
+            <i class="fas fa-balance-scale me-2"></i>
+            Comparação: Antes vs Depois
+        </h2>
+        
+        <!-- {% if report.visualizations.completeness_comparison %}
+        <div class="visualization-card">
+            <div class="card-header bg-success text-white">
+                <h4 class="mb-0">
+                    <i class="fas fa-chart-pie me-2"></i>
+                    Completude dos Dados: Transformação Visual
+                </h4>
+            </div>
+            <div class="card-body p-0">
+                <div class="chart-container">
+                    <img src="{{ report.visualizations.completeness_comparison }}" 
+                         alt="Comparação de Completude dos Dados" 
+                         class="chart-image"
+                         onclick="openFullscreen(this)">
+                    <div class="improvement-badge">
+                        +{{ report.analysis_data.extraction_impact.improvement_percent|round(1) }}% Melhoria
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer bg-light">
+                <p class="mb-0 text-muted">
+                    <i class="fas fa-info-circle me-1"></i>
+                    <strong>Insight:</strong> O processamento transformou campos vazios em dados estruturados,
+                    resultando em {{ report.analysis_data.extraction_impact.improvement_percent|round(1) }}% 
+                    mais informações úteis.
+                </p>
+            </div>
+        </div>
+        {% endif %}
+    </div> -->
+
+    Field Extraction Analysis
+    {% if report.visualizations.field_extraction_comparison %}
+    <div class="visualization-card fade-in">
+        <div class="card-header bg-primary text-white">
+            <h4 class="mb-0">
+                <i class="fas fa-search-plus me-2"></i>
+                Taxa de Extração por Campo
+            </h4>
+        </div>
+        <div class="card-body p-0">
+            <div class="chart-container">
+                <img src="{{ report.visualizations.field_extraction_comparison }}" 
+                     alt="Taxa de Extração por Campo" 
+                     class="chart-image"
+                     onclick="openFullscreen(this)">
+            </div>
+        </div>
+        <div class="card-footer bg-light">
+            <p class="mb-0 text-muted">
+                <i class="fas fa-info-circle me-1"></i>
+                <strong>Análise:</strong> Mostra quais tipos de dados foram mais efetivamente extraídos 
+                do texto não estruturado original.
+            </p>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Data Density Heatmap
+    {% if report.visualizations.data_density_heatmap %}
+    <div class="visualization-card fade-in">
+        <div class="card-header bg-warning text-white">
+            <h4 class="mb-0">
+                <i class="fas fa-th me-2"></i>
+                Mapa de Densidade dos Dados
+            </h4>
+        </div>
+        <div class="card-body p-0">
+            <div class="chart-container">
+                <img src="{{ report.visualizations.data_density_heatmap }}" 
+                     alt="Mapa de Densidade dos Dados" 
+                     class="chart-image"
+                     onclick="openFullscreen(this)">
+            </div>
+        </div>
+        <div class="card-footer bg-light">
+            <p class="mb-0 text-muted">
+                <i class="fas fa-info-circle me-1"></i>
+                <strong>Visualização:</strong> Verde indica presença de dados, vermelho indica campos vazios. 
+                Compare a densidade antes e depois do processamento.
+            </p>
+        </div>
+    </div>
+    {% endif %} -->
+
+    <!-- Summary Metrics -->
+    {% if report.visualizations.summary_metrics %}
+    <div class="visualization-card fade-in">
+        <div class="card-header bg-info text-white">
+            <h4 class="mb-0">
+                <i class="fas fa-chart-bar me-2"></i>
+                Métricas Resumidas de Extração
+            </h4>
+        </div>
+        <div class="card-body p-0">
+            <div class="chart-container">
+                <img src="{{ report.visualizations.summary_metrics }}" 
+                     alt="Métricas Resumidas de Extração" 
+                     class="chart-image"
+                     onclick="openFullscreen(this)">
+            </div>
+        </div>
+        <div class="card-footer bg-light">
+            <p class="mb-0 text-muted">
+                <i class="fas fa-info-circle me-1"></i>
+                <strong>Dashboard:</strong> Visão geral completa do volume de dados, completude, 
+                campos criados e principais extrações realizadas.
+            </p>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Interactive Dashboard -->
+    {% if report.visualizations.interactive_dashboard %}
+    <div class="interactive-dashboard fade-in">
+        <h3 class="text-center mb-4">
+            <i class="fas fa-desktop me-2"></i>
+            Dashboard Interativo
+        </h3>
+        <div id="interactive-dashboard">
+            {{ report.visualizations.interactive_dashboard|safe }}
+        </div>
+        <div class="text-center mt-3">
+            <p class="text-muted">
+                <i class="fas fa-mouse-pointer me-1"></i>
+                Dashboard interativo - passe o mouse sobre os elementos para mais detalhes
+            </p>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Detailed Analysis Section
+    <div class="row mb-5">
+        <div class="col-lg-6">
+            <div class="card visualization-card">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-file-alt me-2"></i>
+                        Dados Originais
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <h4 class="text-primary">{{ report.analysis_data.original_stats.total_columns }}</h4>
+                            <small>Colunas Originais</small>
+                        </div>
+                        <div class="col-6">
+                            <h4 class="text-primary">{{ "{:.1f}".format(report.analysis_data.original_stats.overall_completeness) }}%</h4>
+                            <small>Completude Original</small>
+                        </div>
+                    </div>
+                    <hr>
+                    <h6 class="text-muted">Status dos Campos Originais:</h6>
+                    <div class="progress mb-2">
+                        <div class="progress-bar bg-success" 
+                             style="width: {{ report.analysis_data.original_stats.overall_completeness }}%">
+                            Dados Presentes
+                        </div>
+                        <div class="progress-bar bg-danger" 
+                             style="width: {{ 100 - report.analysis_data.original_stats.overall_completeness }}%">
+                            Campos Vazios
+                        </div>
+                    </div>
+                    <small class="text-muted">
+                        A maioria dos dados originais eram texto não estruturado com muitos campos vazios.
+                    </small>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card visualization-card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-cogs me-2"></i>
+                        Dados Processados
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <h4 class="text-success">{{ report.analysis_data.processed_stats.total_columns }}</h4>
+                            <small>Total de Colunas</small>
+                        </div>
+                        <div class="col-6">
+                            <h4 class="text-success">{{ "{:.1f}".format(report.analysis_data.processed_stats.overall_completeness) }}%</h4>
+                            <small>Nova Completude</small>
+                        </div>
+                    </div>
+                    <hr>
+                    <h6 class="text-muted">Campos Extraídos Adicionais:</h6>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Campos Estruturados:</span>
+                        <strong class="text-success">{{ report.analysis_data.processed_stats.extracted_columns }}</strong>
+                    </div>
+                    <div class="progress mb-2">
+                        <div class="progress-bar bg-success" 
+                             style="width: {{ report.analysis_data.processed_stats.overall_completeness }}%">
+                            Dados Estruturados
+                        </div>
+                    </div>
+                    <small class="text-muted">
+                        Bibliotecario extraiu dados estruturados do texto original, 
+                        criando {{ report.analysis_data.processed_stats.extracted_columns }} novos campos.
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div> -->
+
+    <!-- Top Extracted Fields -->
+    {% if report.analysis_data.processed_stats.extraction_success %}
+    <div class="card visualization-card mb-5">
+        <div class="card-header bg-dark text-white">
+            <h4 class="mb-0">
+                <i class="fas fa-star me-2"></i>
+                Campos Mais Extraídos
+            </h4>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                {% for field_name, data in report.analysis_data.processed_stats.extraction_success.items() %}
+                {% if data.extraction_rate > 5 %}
+                <div class="col-md-6 col-lg-4 mb-3">
+                    <div class="card bg-light">
+                        <div class="card-body text-center">
+                            <h6 class="card-title">{{ field_name.replace('_', ' ').title() }}</h6>
+                            <div class="progress mb-2">
+                                <div class="progress-bar bg-info" 
+                                     style="width: {{ data.extraction_rate }}%">
+                                    {{ "{:.1f}".format(data.extraction_rate) }}%
+                                </div>
+                            </div>
+                            <small class="text-muted">
+                                {{ "{:,}".format(data.extracted_count) }} extrações
+                            </small>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Download and Action Section -->
+    <div class="download-section">
+        <h3 class="mb-4">
+            <i class="fas fa-download me-2"></i>
+            Baixar Análise Completa
+        </h3>
+        <p class="lead mb-4">
+            Salve esta análise visual para suas apresentações e relatórios
+        </p>
+        <div class="d-flex justify-content-center flex-wrap">
+            <button class="btn btn-download" onclick="window.print()">
+                <i class="fas fa-file-pdf me-2"></i>
+                Salvar como PDF
+            </button>
+            <button class="btn btn-download" onclick="downloadImages()">
+                <i class="fas fa-images me-2"></i>
+                Baixar Gráficos
+            </button>
+            <button class="btn btn-download" onclick="generateReport()">
+                <i class="fas fa-file-alt me-2"></i>
+                Relatório Completo
+            </button>
+        </div>
+    </div>
+
+    <!-- Navigation -->
+    <div class="text-center mt-5 mb-4">
+        <div class="btn-group" role="group">
+            <a href="{{ url_for('main.results', session_id=session_id) }}" class="btn btn-outline-primary btn-lg">
+                <i class="fas fa-arrow-left me-2"></i>
+                Voltar aos Resultados
+            </a>
+            <a href="{{ url_for('main.upload') }}" class="btn btn-primary btn-lg">
+                <i class="fas fa-upload me-2"></i>
+                Processar Outro Arquivo
+            </a>
+            <a href="{{ url_for('main.index') }}" class="btn btn-outline-secondary btn-lg">
+                <i class="fas fa-home me-2"></i>
+                Início
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Fullscreen Modal -->
+<div id="fullscreenModal" class="fullscreen-chart" style="display: none;" onclick="closeFullscreen()">
+    <span class="close-fullscreen">&times;</span>
+    <img id="fullscreenImage" src="" alt="Fullscreen Chart">
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+$(document).ready(function() {
+    // Add entrance animations
+    $('.fade-in').each(function(index) {
+        $(this).css({
+            'animation-delay': (index * 0.2) + 's'
+        });
+    });
+    
+    // Add hover effects to visualization cards
+    $('.visualization-card').hover(
+        function() {
+            $(this).addClass('shadow-lg');
+        },
+        function() {
+            $(this).removeClass('shadow-lg');
+        }
+    );
+    
+    // Smooth scrolling for anchor links
+    $('a[href^="#"]').on('click', function(event) {
+        const target = $(this.getAttribute('href'));
+        if (target.length) {
+            event.preventDefault();
+            $('html, body').stop().animate({
+                scrollTop: target.offset().top - 100
+            }, 1000);
+        }
+    });
+    
+    // Auto-scroll to first visualization after page load
+    setTimeout(function() {
+        const firstChart = $('.visualization-card').first();
+        if (firstChart.length) {
+            $('html, body').animate({
+                scrollTop: firstChart.offset().top - 100
+            }, 1500);
+        }
+    }, 2000);
+});
+
+// Fullscreen functionality
+function openFullscreen(img) {
+    $('#fullscreenImage').attr('src', img.src);
+    $('#fullscreenModal').fadeIn();
+}
+
+function closeFullscreen() {
+    $('#fullscreenModal').fadeOut();
+}
+
+// Download functionality
+function downloadImages() {
+    $('.chart-image').each(function(index) {
+        const link = document.createElement('a');
+        link.download = `bibliotecario_chart_${index + 1}.png`;
+        link.href = this.src;
+        link.click();
+    });
+    
+    // Show success message
+    showNotification('Gráficos baixados com sucesso!', 'success');
+}
+
+function generateReport() {
+    // Generate a comprehensive text report
+    let report = `BIBLIOTECARIO - RELATÓRIO DE ANÁLISE VISUAL\n`;
+    report += `${'='.repeat(50)}\n\n`;
+    report += `Data da Análise: ${new Date().toLocaleDateString('pt-BR')}\n`;
+    report += `Total de Registros: {{ "{:,}".format(report.analysis_data.original_stats.total_rows) }}\n\n`;
+    
+    report += `RESUMO EXECUTIVO:\n`;
+    report += `- Dados Originais: {{ "{:,}".format(report.analysis_data.extraction_impact.original_filled_cells) }} células preenchidas\n`;
+    report += `- Dados Processados: {{ "{:,}".format(report.analysis_data.extraction_impact.processed_filled_cells) }} células preenchidas\n`;
+    report += `- Melhoria: +{{ report.analysis_data.extraction_impact.improvement_percent|round(1) }}%\n`;
+    report += `- Novos Campos: {{ report.analysis_data.processed_stats.extracted_columns }}\n\n`;
+    
+    {% for insight in report.summary_insights %}
+    report += `{{ insight.title.upper() }}:\n`;
+    report += `{{ insight.description }}\n`;
+    report += `Métrica: {{ insight.metric }}\n\n`;
+    {% endfor %}
+    
+    // Download as text file
+    const blob = new Blob([report], { type: 'text/plain' });
+    const link = document.createElement('a');
+    link.download = 'bibliotecario_relatorio_analise.txt';
+    link.href = URL.createObjectURL(blob);
+    link.click();
+    
+    showNotification('Relatório gerado com sucesso!', 'success');
+}
+
+function showNotification(message, type) {
+    const notification = $(`
+        <div class="alert alert-${type === 'success' ? 'success' : 'info'} alert-dismissible fade show position-fixed" 
+             style="top: 20px; right: 20px; z-index: 9999;">
+            <i class="fas fa-${type === 'success' ? 'check' : 'info'}-circle me-2"></i>
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `);
+    
+    $('body').append(notification);
+    
+    setTimeout(function() {
+        notification.fadeOut();
+    }, 5000);
+}
+
+// Print optimization
+window.addEventListener('beforeprint', function() {
+    $('#fullscreenModal').hide();
+    $('.btn').hide();
+    $('.card-footer').hide();
+});
+
+window.addEventListener('afterprint', function() {
+    $('.btn').show();
+    $('.card-footer').show();
+});
+
+// Keyboard shortcuts
+$(document).keydown(function(e) {
+    // ESC key to close fullscreen
+    if (e.keyCode === 27 && $('#fullscreenModal').is(':visible')) {
+        closeFullscreen();
+    }
+    
+    // Ctrl+P for print
+    if (e.ctrlKey && e.keyCode === 80) {
+        e.preventDefault();
+        window.print();
+    }
+});
+</script>
+{% endblock %}
