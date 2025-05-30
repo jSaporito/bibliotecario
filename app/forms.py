@@ -7,43 +7,43 @@ class UploadForm(FlaskForm):
     """Enhanced upload form with analysis options"""
     
     file = FileField(
-        'CSV File',
+        'Arquivo CSV',
         validators=[
-            FileRequired(message='Please select a CSV file'),
-            FileAllowed(['csv'], message='Only CSV files allowed')
+            FileRequired(message='Selecione um arquivo CSV'),
+            FileAllowed(['csv'], message='Apenas arquivos CSV são permitidos')
         ]
     )
     
     obs_column = StringField(
-        'Text Column Name',
+        'Nome da Coluna de Texto',
         validators=[DataRequired()],
         default='obs',
-        description='Column containing text data to process'
+        description='Coluna contendo dados de texto para processar'
     )
     
     chunk_size = IntegerField(
-        'Processing Chunk Size',
+        'Tamanho do Lote de Processamento',
         validators=[NumberRange(min=100, max=10000)],
         default=5000,
-        description='Number of rows to process at once'
+        description='Número de linhas para processar de uma vez'
     )
     
     export_formats = SelectField(
-        'Export Format',
+        'Formato de Exportação',
         choices=[
-            ('csv', 'CSV Only'), 
-            ('excel', 'Excel Only'), 
-            ('json', 'JSON Only'),
+            ('csv', 'Apenas CSV'), 
+            ('excel', 'Apenas Excel'), 
+            ('json', 'Apenas JSON'),
             ('both', 'CSV + Excel'), 
-            ('all', 'All Formats (CSV + Excel + JSON)')
+            ('all', 'Todos os Formatos (CSV + Excel + JSON)')
         ],
         default='both'
     )
     
     enable_cleaning = BooleanField(
-        'Enable Advanced Text Cleaning',
+        'Habilitar Limpeza Avançada de Texto',
         default=True,
-        description='Remove noise, separators, and unwanted text'
+        description='Remover ruídos, separadores e texto indesejado'
     )
     
     enable_extraction = BooleanField(
@@ -64,4 +64,4 @@ class UploadForm(FlaskForm):
         description='Choose which fields to extract'
     )
     
-    submit = SubmitField('Start Enhanced Processing')
+    submit = SubmitField('Iniciar Processamento Avançado')

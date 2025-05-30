@@ -74,11 +74,10 @@
                     Business Impact Analysis
                 </h1>
                 <p class="lead">
-                    Quantified Benefits of Bibliotecario Text Processing Solution
+                    Benefícios Quantificados da Solução de Processamento de Texto Bibliotecario
                 </p>
                 <small class="opacity-75">
-                    Analysis based on {{ "{:,}".format(analysis_data.sample_info.total_file_rows) }} 
-                    row dataset with {{ "{:,}".format(analysis_data.sample_info.actual_size) }} sample analysis
+                    Analysis based on {{ "{:,}".format(analysis_data.sample_info.total_file_rows) }} row dataset with {{ "{:,}".format(analysis_data.sample_info.actual_size) }} sample analysis
                 </small>
             </div>
             
@@ -145,22 +144,22 @@
                         <div class="row text-center">
                             <div class="col-6">
                                 <h3 class="text-primary">{{ "{:,}".format(analysis_data.sample_info.total_file_rows) }}</h3>
-                                <small>Total Rows</small>
+                                <small>Total de Linhas</small>
                             </div>
                             <div class="col-6">
                                 <h3 class="text-success">{{ metrics.business_impact.quality_improvements.data_reduction }}</h3>
-                                <small>Data Reduction</small>
+                                <small>Redução de Dados</small>
                             </div>
                         </div>
                         <hr>
                         <div class="row text-center">
                             <div class="col-6">
                                 <h4 class="text-info">{{ analysis_data.recommendations.extraction_potential.total_fields_found }}</h4>
-                                <small>Fields Extracted</small>
+                                <small>Campos Extraídos</small>
                             </div>
                             <div class="col-6">
                                 <h4 class="text-warning">{{ analysis_data.recommendations.extraction_potential.fields_per_record }}</h4>
-                                <small>Fields per Record</small>
+                                <small>Campos por Registro</small>
                             </div>
                         </div>
                     </div>
@@ -179,7 +178,7 @@
                         <div class="row text-center">
                             <div class="col-6">
                                 <h3 class="text-success">${{ "{:,}".format(metrics.roi_analysis.returns.annual_savings) }}</h3>
-                                <small>Annual Savings</small>
+                                <small>Economia Anual</small>
                             </div>
                             <div class="col-6">
                                 <h3 class="text-primary">{{ metrics.roi_analysis.returns.roi_percentage }}%</h3>
@@ -190,11 +189,11 @@
                         <div class="row text-center">
                             <div class="col-6">
                                 <h4 class="text-info">{{ metrics.roi_analysis.returns.payback_months }}</h4>
-                                <small>Months to Payback</small>
+                                <small>Meses para Retorno</small>
                             </div>
                             <div class="col-6">
                                 <h4 class="text-warning">${{ "{:,}".format(metrics.roi_analysis.returns.net_benefit_year1) }}</h4>
-                                <small>Year 1 Net Benefit</small>
+                                <small>Benefício Líquido do Ano 1</small>
                             </div>
                         </div>
                     </div>
@@ -215,17 +214,17 @@
                     <div class="col-md-4 text-center mb-3">
                         <i class="fas fa-rocket fa-3x text-primary mb-2"></i>
                         <h5>{{ metrics.efficiency_gains.processing_speed }}</h5>
-                        <small class="text-muted">Processing Speed</small>
+                        <small class="text-muted">Velocidade de Processamento</small>
                     </div>
                     <div class="col-md-4 text-center mb-3">
                         <i class="fas fa-bullseye fa-3x text-success mb-2"></i>
                         <h5>{{ metrics.efficiency_gains.accuracy_improvement }}</h5>
-                        <small class="text-muted">Accuracy Improvement</small>
+                        <small class="text-muted">Melhoria da Precisão</small>
                     </div>
                     <div class="col-md-4 text-center mb-3">
                         <i class="fas fa-shield-alt fa-3x text-info mb-2"></i>
                         <h5>{{ metrics.efficiency_gains.consistency }}</h5>
-                        <small class="text-muted">Result Consistency</small>
+                        <small class="text-muted">Consistência dos Resultados</small>
                     </div>
                 </div>
             </div>
@@ -242,43 +241,43 @@
             <div class="card-body">
                 <div class="row">
                     <div class="col-md-6">
-                        <h6 class="text-primary mb-3">Investment Breakdown</h6>
+                        <h6 class="text-primary mb-3">Detalhamento do Investimento</h6>
                         <div class="list-group">
                             <div class="list-group-item d-flex justify-content-between">
-                                <span>Software License (Annual)</span>
+                                <span>Licença de Software (Anual)</span>
                                 <strong>${{ "{:,}".format(metrics.roi_analysis.investment.software_annual) }}</strong>
                             </div>
                             <div class="list-group-item d-flex justify-content-between">
-                                <span>Training (One-time)</span>
+                                <span>Treinamento (Uma vez)</span>
                                 <strong>${{ "{:,}".format(metrics.roi_analysis.investment.training_onetime) }}</strong>
                             </div>
                             <div class="list-group-item d-flex justify-content-between">
-                                <span>Setup & Integration</span>
+                                <span>Configuração e Integração</span>
                                 <strong>${{ "{:,}".format(metrics.roi_analysis.investment.setup_onetime) }}</strong>
                             </div>
                             <div class="list-group-item d-flex justify-content-between bg-light">
-                                <strong>Total First Year</strong>
+                                <strong>Total do Primeiro Ano</strong>
                                 <strong>${{ "{:,}".format(metrics.roi_analysis.investment.total_first_year) }}</strong>
                             </div>
                         </div>
                     </div>
                     <div class="col-md-6">
-                        <h6 class="text-success mb-3">Return Analysis</h6>
+                        <h6 class="text-success mb-3">Análise de Retorno</h6>
                         <div class="list-group">
                             <div class="list-group-item d-flex justify-content-between">
-                                <span>Annual Savings</span>
+                                <span>Economia Anual</span>
                                 <strong class="text-success">${{ "{:,}".format(metrics.roi_analysis.returns.annual_savings) }}</strong>
                             </div>
                             <div class="list-group-item d-flex justify-content-between">
-                                <span>Monthly Savings</span>
+                                <span>Economia Mensal</span>
                                 <strong class="text-success">${{ "{:,}".format(metrics.roi_analysis.break_even_analysis.monthly_savings) }}</strong>
                             </div>
                             <div class="list-group-item d-flex justify-content-between">
-                                <span>Break-even Period</span>
+                                <span>Período de Equilíbrio</span>
                                 <strong>{{ metrics.roi_analysis.break_even_analysis.break_even_month }} months</strong>
                             </div>
                             <div class="list-group-item d-flex justify-content-between bg-success text-white">
-                                <strong>3-Year Net Benefit</strong>
+                                <strong>Benefício Líquido de 3 Anos</strong>
                                 <strong>${{ "{:,}".format(metrics.roi_analysis.break_even_analysis.cumulative_benefit_3_years) }}</strong>
                             </div>
                         </div>
@@ -323,20 +322,20 @@
                             <li><strong>Sample Size:</strong> {{ "{:,}".format(analysis_data.sample_info.actual_size) }} rows</li>
                             <li><strong>Total File Size:</strong> {{ "{:,}".format(analysis_data.sample_info.total_file_rows) }} rows</li>
                             <li><strong>Data Size:</strong> {{ analysis_data.text_stats.total_mb }} MB</li>
-                            <li><strong>Avg Text Length:</strong> {{ "{:,}".format(analysis_data.text_stats.avg_length) }} chars</li>
+                            <li><strong>Comprimento Médio do Texto:</strong> {{ "{:,}".format(analysis_data.text_stats.avg_length) }} chars</li>
                         </ul>
                     </div>
                     <div class="col-md-4">
-                        <h6 class="text-success">Extraction Results</h6>
+                        <h6 class="text-success">Extraction Resultados</h6>
                         <ul class="list-unstyled">
                             <li><strong>Fields Found:</strong> {{ analysis_data.recommendations.extraction_potential.total_fields_found }}</li>
-                            <li><strong>Fields per Record:</strong> {{ analysis_data.recommendations.extraction_potential.fields_per_record }}</li>
+                            <li><strong>Campos por Registro:</strong> {{ analysis_data.recommendations.extraction_potential.fields_per_record }}</li>
                             <li><strong>Success Rate:</strong> High</li>
                             <li><strong>Quality:</strong> Excellent</li>
                         </ul>
                     </div>
                     <div class="col-md-4">
-                        <h6 class="text-warning">Processing Optimization</h6>
+                        <h6 class="text-warning">Processando Optimization</h6>
                         <ul class="list-unstyled">
                             <li><strong>Recommended Chunk:</strong> {{ "{:,}".format(analysis_data.recommendations.processing_suggestions.recommended_chunk_size) }} rows</li>
                             <li><strong>Est. Time:</strong> {{ analysis_data.recommendations.processing_suggestions.estimated_processing_time_minutes }} min</li>
@@ -356,7 +355,7 @@
 
         <!-- Action Buttons -->
         <div class="text-center mb-5">
-            <h4 class="mb-4">Ready to Transform Your Data Processing?</h4>
+            <h4 class="mb-4">Ready to Transform Your Data Processando?</h4>
             <div class="d-flex justify-content-center gap-3 flex-wrap">
                 <a href="{{ url_for('main.upload') }}" class="btn btn-success btn-lg">
                     <i class="fas fa-rocket me-2"></i>

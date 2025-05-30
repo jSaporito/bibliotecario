@@ -9,7 +9,7 @@ function pollProgress(sessionId) {
                               .text(progress + '%');
                 
                 // Update status message
-                $('#statusMessage').text(data.message || 'Processing...');
+                $('#statusMessage').text(data.message || 'Processando...');
                 
                 // Check if completed
                 if (data.status === 'completed') {
@@ -18,7 +18,7 @@ function pollProgress(sessionId) {
                     // Update UI for completion
                     $('#progressBar').removeClass('progress-bar-striped progress-bar-animated')
                                    .addClass('bg-success');
-                    $('#statusMessage').html('<i class="fas fa-check-circle text-success me-2"></i>Processing completed successfully!');
+                    $('#statusMessage').html('<i class="fas fa-check-circle text-success me-2"></i>Processamento concluído com sucesso!');
                     
                     // Redirect to results page
                     setTimeout(function() {
@@ -36,11 +36,11 @@ function pollProgress(sessionId) {
                     // Show error alert
                     const errorAlert = `
                         <div class="alert alert-danger mt-3" role="alert">
-                            <h6><i class="fas fa-exclamation-triangle me-2"></i>Processing Failed</h6>
+                            <h6><i class="fas fa-exclamation-triangle me-2"></i>Processamento Falhou</h6>
                             <p class="mb-0">${data.message}</p>
                             <hr>
                             <a href="/upload" class="btn btn-outline-danger btn-sm">
-                                <i class="fas fa-redo me-1"></i>Try Again
+                                <i class="fas fa-redo me-1"></i>Tente Novamente
                             </a>
                         </div>
                     `;
@@ -49,7 +49,7 @@ function pollProgress(sessionId) {
             })
             .fail(function() {
                 clearInterval(interval);
-                $('#statusMessage').html('<i class="fas fa-exclamation-triangle text-warning me-2"></i>Connection error. Please refresh the page.');
+                $('#statusMessage').html('<i class="fas fa-exclamation-triangle text-warning me-2"></i>Erro de conexão. Atualize a página.');
             });
     }, 2000); // Poll every 2 seconds
 }
@@ -76,14 +76,14 @@ $(document).ready(function() {
     $('input[type="file"]').on('change', function() {
         const fileName = $(this).val().split('\\').pop();
         if (fileName) {
-            $(this).next('.form-text').text(`Selected: ${fileName}`);
+            $(this).next('.form-text').text(`Selecionado: ${fileName}`);
         }
     });
     
     // Add loading state to buttons on form submit
     $('form').on('submit', function() {
         $(this).find('button[type="submit"]').prop('disabled', true)
-               .html('<i class="fas fa-spinner fa-spin me-2"></i>Processing...');
+               .html('<i class="fas fa-spinner fa-spin me-2"></i>Processando...');
     });
 });
 
