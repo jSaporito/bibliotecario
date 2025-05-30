@@ -1,4 +1,3 @@
-
 import pandas as pd
 import numpy as np
 import os
@@ -6,19 +5,36 @@ from datetime import datetime
 import warnings
 warnings.filterwarnings('ignore')
 
+# Import the enhanced modules
+try:
+    from .text_cleaner import EnhancedTelecomTextCleaner
+    from .text_extractor import EnhancedTelecomTextExtractor
+except ImportError:
+    # Fallback for standalone usage
+    from text_cleaner import EnhancedTelecomTextCleaner
+    from text_extractor import EnhancedTelecomTextExtractor
+
 class EnhancedTelecomDataProcessor:
     """
-    Enhanced telecom data processor with fixed data type handling
+    Enhanced telecom data processor with integrated text cleaning and field extraction
     This fixes the 'cannot convert the series to <class 'int'>' error
     """
     
     def __init__(self, chunk_size=5000):
         self.chunk_size = chunk_size
+        self.cleaner = EnhancedTelecomTextCleaner()
+        self.extractor = EnhancedTelecomTextExtractor()
+        
         self.stats = {
             'total_rows': 0,
             'processed_rows': 0,
+            'extracted_fields': 0,
+            'chunks_processed': 0,
+            'cleaning_stats': {},
+            'extraction_stats': {},
             'errors': [],
-            'warnings': []
+            'warnings': [],
+            'processing_time': None
         }
     
     def safe_convert_to_int(self, series, column_name="unknown"):
@@ -78,124 +94,39 @@ class EnhancedTelecomDataProcessor:
             # Return series filled with zeros as ultimate fallback
             return pd.Series([0] * len(series), index=series.index, dtype=int)
     
-    def safe_convert_to_float(self, series, column_name="unknown"):
-        """
-        Safely convert a pandas series to floats, handling problematic values
-        """
-        try:
-            original_length = len(series)
-            
-            # Handle missing values first
-            series = series.fillna(0.0)
-            
-            # Convert to string to handle mixed types
-            series = series.astype(str)
-            
-            # Handle common problematic values
-            series = series.replace({
-                'nan': '0.0',
-                'NaN': '0.0',
-                'None': '0.0', 
-                'null': '0.0',
-                'NULL': '0.0',
-                '': '0.0',
-                ' ': '0.0',
-                'N/A': '0.0',
-                'n/a': '0.0',
-                'inf': '0.0',
-                'infinity': '0.0'
-            })
-            
-            # Remove non-numeric characters except digits, decimal points, and minus signs
-            series = series.str.replace(r'[^\d.-]', '', regex=True)
-            
-            # Handle empty strings after cleaning
-            series = series.replace('', '0.0')
-            series = series.replace('-', '0.0')
-            
-            # Convert to numeric
-            series = pd.to_numeric(series, errors='coerce')
-            
-            # Fill any remaining NaNs with 0
-            series = series.fillna(0.0)
-            
-            print(f"✅ Successfully converted column '{column_name}' to floats ({original_length} values)")
-            return series
-            
-        except Exception as e:
-            print(f"❌ Error converting column '{column_name}' to float: {str(e)}")
-            self.stats['warnings'].append(f"Could not convert {column_name} to float, using zeros")
-            # Return series filled with zeros as ultimate fallback
-            return pd.Series([0.0] * len(series), index=series.index, dtype=float)
-    
-    def fix_data_types(self, df):
-        """
-        Fix data types in the DataFrame to prevent conversion errors
-        This is called before any processing that might cause type conversion issues
-        """
-        print("🔧 Fixing data types to prevent conversion errors...")
-        
+    def _fix_data_types(self, df):
+        """Fix problematic data types"""
         try:
             df_fixed = df.copy()
             
-            # Identify columns that should be numeric based on their names or content
-            numeric_int_columns = []
-            numeric_float_columns = []
-            
+            # Convert object columns with mixed types to string
             for col in df_fixed.columns:
-                col_lower = col.lower()
-                
-                # Check column names for obvious numeric indicators
-                if any(keyword in col_lower for keyword in [
-                    'id', 'count', 'number', 'num', 'qty', 'quantity', 
-                    'age', 'year', 'month', 'day', 'index', 'rank'
-                ]):
-                    numeric_int_columns.append(col)
-                elif any(keyword in col_lower for keyword in [
-                    'price', 'cost', 'amount', 'rate', 'percent', 'score',
-                    'weight', 'height', 'distance', 'speed', 'temp'
-                ]):
-                    numeric_float_columns.append(col)
-                elif df_fixed[col].dtype == 'object':
-                    # Sample the column to see if it looks numeric
-                    sample = df_fixed[col].dropna().head(100).astype(str)
-                    if len(sample) > 10:  # Only check if we have enough samples
-                        # Count values that look like integers
-                        int_like = sample.str.match(r'^-?\d+$').sum()
-                        # Count values that look like floats
-                        float_like = sample.str.match(r'^-?\d*\.?\d+$').sum()
-                        
-                        total_samples = len(sample)
-                        
-                        if int_like > total_samples * 0.7:  # 70% look like integers
-                            numeric_int_columns.append(col)
-                        elif (int_like + float_like) > total_samples * 0.7:  # 70% look numeric
-                            numeric_float_columns.append(col)
+                if df_fixed[col].dtype == 'object':
+                    try:
+                        # Check if column contains mixed types
+                        sample = df_fixed[col].dropna().head(100)
+                        if len(sample) > 0:
+                            types = set(type(x).__name__ for x in sample)
+                            if len(types) > 1:
+                                df_fixed[col] = df_fixed[col].astype(str)
+                                df_fixed[col] = df_fixed[col].replace('nan', '')
+                    except Exception:
+                        continue
             
-            print(f"Identified {len(numeric_int_columns)} integer columns: {numeric_int_columns}")
-            print(f"Identified {len(numeric_float_columns)} float columns: {numeric_float_columns}")
-            
-            # Convert integer columns
-            for col in numeric_int_columns:
-                df_fixed[col] = self.safe_convert_to_int(df_fixed[col], col)
-            
-            # Convert float columns  
-            for col in numeric_float_columns:
-                df_fixed[col] = self.safe_convert_to_float(df_fixed[col], col)
-            
-            print("✅ Data type fixing completed successfully")
+            print("✅ Data types fixed successfully")
             return df_fixed
             
         except Exception as e:
-            print(f"❌ Error in fix_data_types: {str(e)}")
-            self.stats['errors'].append(f"Data type fixing failed: {str(e)}")
-            return df  # Return original DataFrame if fixing fails
+            print(f"⚠️ Warning in data type fixing: {str(e)}")
+            return df
     
-    def process_csv(self, file_path, obs_column='obs', progress_callback=None):
+    def process_csv(self, file_path, obs_column='obs', enable_cleaning=True, 
+                   enable_extraction=True, progress_callback=None):
         """
-        Process CSV file with enhanced error handling and data type fixing
-        This is the main method that was causing your error
+        Process CSV file with enhanced text cleaning and field extraction
         """
+        start_time = datetime.now()
+        
         def update_progress(message, progress=None):
             if progress_callback:
                 progress_callback(message, progress)
@@ -203,81 +134,60 @@ class EnhancedTelecomDataProcessor:
                 print(f"Progress: {message}")
         
         try:
-            update_progress("Starting CSV processing...", 10)
+            update_progress("Starting enhanced CSV processing...", 5)
             
-            # Check if file exists
+            # Validate file
             if not os.path.exists(file_path):
                 raise FileNotFoundError(f"File not found: {file_path}")
             
-            # Read the CSV file with error handling
-            update_progress("Reading CSV file...", 20)
-            
-            try:
-                # Try UTF-8 first
-                df = pd.read_csv(file_path, low_memory=False)
-                print(f"✅ Successfully read CSV with UTF-8 encoding")
-            except UnicodeDecodeError:
-                try:
-                    # Try latin-1 if UTF-8 fails
-                    df = pd.read_csv(file_path, low_memory=False, encoding='latin-1')
-                    print(f"✅ Successfully read CSV with latin-1 encoding")
-                except Exception as e:
-                    # Try with python engine as last resort
-                    df = pd.read_csv(file_path, low_memory=False, encoding='utf-8', engine='python')
-                    print(f"✅ Successfully read CSV with python engine")
+            # Read CSV with encoding detection
+            update_progress("Reading CSV file...", 10)
+            df = self._read_csv_safely(file_path)
             
             self.stats['total_rows'] = len(df)
-            print(f"Initial data shape: {df.shape}")
-            print(f"Columns: {list(df.columns)}")
+            print(f"✅ Loaded CSV: {df.shape[0]} rows, {df.shape[1]} columns")
             
-            update_progress("Fixing data types...", 30)
+            # Validate obs column
+            if obs_column not in df.columns:
+                available_cols = ', '.join(df.columns[:5])
+                raise ValueError(f"Column '{obs_column}' not found. Available: {available_cols}...")
             
-            # 🚨 THIS IS THE KEY FIX - Fix data types BEFORE any processing
-            df = self.fix_data_types(df)
+            update_progress("Fixing data types...", 15)
+            df = self._fix_data_types(df)
             
-            update_progress("Processing data in chunks...", 40)
-            
-            # Process the data (your existing business logic goes here)
+            # Process in chunks if large dataset
             if len(df) > self.chunk_size:
-                # Process in chunks
-                chunks = []
-                total_chunks = (len(df) + self.chunk_size - 1) // self.chunk_size
-                
-                for i in range(0, len(df), self.chunk_size):
-                    chunk_num = i // self.chunk_size + 1
-                    chunk = df.iloc[i:i + self.chunk_size].copy()
-                    
-                    update_progress(f"Processing chunk {chunk_num}/{total_chunks}...", 
-                                  40 + (chunk_num / total_chunks) * 30)
-                    
-                    # Process this chunk (add your specific business logic here)
-                    processed_chunk = self.process_chunk(chunk, obs_column)
-                    chunks.append(processed_chunk)
-                
-                # Combine all chunks
-                update_progress("Combining processed chunks...", 75)
-                df = pd.concat(chunks, ignore_index=True)
+                update_progress("Processing in chunks...", 20)
+                df = self._process_in_chunks(df, obs_column, enable_cleaning, 
+                                           enable_extraction, progress_callback)
             else:
-                # Process as single chunk
-                update_progress("Processing data...", 50)
-                df = self.process_chunk(df, obs_column)
+                update_progress("Processing data...", 30)
+                df = self._process_chunk(df, obs_column, enable_cleaning, enable_extraction)
+                self.stats['chunks_processed'] = 1
+            
+            update_progress("Finalizing processing...", 85)
+            
+            # Final cleanup and statistics
+            df = self._finalize_processing(df)
+            
+            # Calculate processing time
+            end_time = datetime.now()
+            processing_time = end_time - start_time
+            self.stats['processing_time'] = str(processing_time).split('.')[0]  # Remove microseconds
             
             self.stats['processed_rows'] = len(df)
             
-            update_progress("Finalizing processing...", 80)
-            
-            # Final cleanup and validation
-            df = self.final_cleanup(df)
+            update_progress("Processing completed successfully!", 100)
             
             return {
                 'success': True,
                 'dataframe': df,
                 'stats': self.stats,
-                'message': 'Processing completed successfully'
+                'message': 'Enhanced processing completed successfully'
             }
             
         except Exception as e:
-            error_msg = f"CSV processing failed: {str(e)}"
+            error_msg = f"Enhanced CSV processing failed: {str(e)}"
             print(f"❌ {error_msg}")
             self.stats['errors'].append(error_msg)
             
@@ -289,60 +199,158 @@ class EnhancedTelecomDataProcessor:
                 'message': error_msg
             }
     
-    def process_chunk(self, chunk, obs_column):
-        """
-        Process a single chunk of data
-        Add your specific business logic here
-        """
+    def _read_csv_safely(self, file_path):
+        """Safely read CSV with encoding detection"""
+        encodings = ['utf-8', 'utf-8-sig', 'latin-1', 'cp1252', 'iso-8859-1']
+        
+        for encoding in encodings:
+            try:
+                df = pd.read_csv(file_path, encoding=encoding, low_memory=False)
+                print(f"✅ Successfully read CSV with {encoding} encoding")
+                return df
+            except (UnicodeDecodeError, UnicodeError):
+                continue
+            except Exception as e:
+                if encoding == encodings[-1]:  # Last encoding
+                    raise e
+                continue
+        
+        # If all encodings fail, try with python engine
         try:
-            # Example processing - replace with your actual logic
+            df = pd.read_csv(file_path, encoding='utf-8', engine='python', low_memory=False)
+            print("✅ Successfully read CSV with python engine")
+            return df
+        except Exception as e:
+            raise Exception(f"Could not read CSV file with any encoding: {str(e)}")
+    
+    def _process_in_chunks(self, df, obs_column, enable_cleaning, enable_extraction, progress_callback):
+        """Process large dataset in chunks"""
+        chunks = []
+        total_chunks = (len(df) + self.chunk_size - 1) // self.chunk_size
+        
+        def update_chunk_progress(message, chunk_progress):
+            # Convert chunk progress to overall progress (20-85%)
+            overall_progress = 20 + (chunk_progress / 100) * 65
+            if progress_callback:
+                progress_callback(message, overall_progress)
+        
+        for i in range(0, len(df), self.chunk_size):
+            chunk_num = i // self.chunk_size + 1
+            chunk = df.iloc[i:i + self.chunk_size].copy()
+            
+            update_chunk_progress(f"Processing chunk {chunk_num}/{total_chunks}...", 
+                                (chunk_num / total_chunks) * 100)
+            
+            processed_chunk = self._process_chunk(chunk, obs_column, enable_cleaning, enable_extraction)
+            chunks.append(processed_chunk)
+            
+            self.stats['chunks_processed'] += 1
+        
+        # Combine all chunks
+        if progress_callback:
+            progress_callback("Combining processed chunks...", 80)
+        
+        combined_df = pd.concat(chunks, ignore_index=True)
+        return combined_df
+    
+    def _process_chunk(self, chunk, obs_column, enable_cleaning, enable_extraction):
+        """Process a single chunk of data"""
+        try:
             processed_chunk = chunk.copy()
             
-            # Clean the observation column if it exists
+            # Process obs column if it exists
             if obs_column in processed_chunk.columns:
-                # Convert to string and clean
-                processed_chunk[obs_column] = processed_chunk[obs_column].astype(str)
-                processed_chunk[obs_column] = processed_chunk[obs_column].replace('nan', '')
                 
-                # Remove very long strings that might cause Excel issues
-                max_length = 32000
-                long_mask = processed_chunk[obs_column].str.len() > max_length
-                if long_mask.any():
-                    processed_chunk.loc[long_mask, obs_column] = (
-                        processed_chunk.loc[long_mask, obs_column].str[:max_length] + "...[TRUNCATED]"
-                    )
-            
-            # Add any other specific processing logic here
-            # For example:
-            # - Data validation
-            # - Calculations
-            # - Transformations
-            # - Filtering
+                # Step 1: Clean text if enabled
+                if enable_cleaning:
+                    print(f"🧹 Cleaning text in column '{obs_column}'...")
+                    
+                    clean_results = []
+                    cleaning_stats = {'total_chars_removed': 0, 'total_lines_removed': 0}
+                    
+                    for idx, text in processed_chunk[obs_column].items():
+                        if pd.isna(text) or not isinstance(text, str):
+                            clean_results.append(text)
+                            continue
+                        
+                        # Clean the text
+                        cleaned_text = self.cleaner.clean_text(text)
+                        clean_results.append(cleaned_text)
+                        
+                        # Collect cleaning statistics
+                        stats = self.cleaner.get_cleaning_stats(text, cleaned_text)
+                        cleaning_stats['total_chars_removed'] += (stats.get('original_length', 0) - 
+                                                                stats.get('cleaned_length', 0))
+                        cleaning_stats['total_lines_removed'] += stats.get('lines_removed', 0)
+                    
+                    # Replace original column with cleaned version
+                    processed_chunk[obs_column + '_cleaned'] = clean_results
+                    self.stats['cleaning_stats'] = cleaning_stats
+                
+                # Step 2: Extract structured fields if enabled
+                if enable_extraction:
+                    print(f"🔍 Extracting fields from column '{obs_column}'...")
+                    
+                    # Use cleaned text if available, otherwise original
+                    text_column = obs_column + '_cleaned' if enable_cleaning else obs_column
+                    
+                    extraction_results = []
+                    extraction_stats = {'fields_extracted': 0, 'successful_extractions': 0}
+                    
+                    # Get all possible field names
+                    field_names = self.extractor.get_field_list()
+                    
+                    for idx, text in processed_chunk[text_column].items():
+                        if pd.isna(text) or not isinstance(text, str):
+                            extraction_results.append({field: None for field in field_names})
+                            continue
+                        
+                        # Extract fields
+                        extracted = self.extractor.extract_all_fields(text)
+                        extraction_results.append(extracted)
+                        
+                        # Count successful extractions
+                        non_null_fields = sum(1 for v in extracted.values() if v is not None)
+                        if non_null_fields > 0:
+                            extraction_stats['successful_extractions'] += 1
+                            extraction_stats['fields_extracted'] += non_null_fields
+                    
+                    # Add extracted fields as new columns
+                    for field in field_names:
+                        processed_chunk[f'extracted_{field}'] = [result[field] for result in extraction_results]
+                    
+                    self.stats['extraction_stats'] = extraction_stats
+                    self.stats['extracted_fields'] = len(field_names)
             
             return processed_chunk
             
         except Exception as e:
             print(f"❌ Error processing chunk: {str(e)}")
             self.stats['errors'].append(f"Chunk processing error: {str(e)}")
-            return chunk  # Return original chunk if processing fails
+            return chunk
     
-    def final_cleanup(self, df):
-        """
-        Final cleanup and validation of the processed DataFrame
-        """
+    def _finalize_processing(self, df):
+        """Final cleanup and optimization"""
         try:
-            # Remove any completely empty rows
+            # Remove completely empty rows
             df = df.dropna(how='all')
             
-            # Clean up any remaining problematic values
+            # Clean up string columns
             for col in df.columns:
                 if df[col].dtype == 'object':
-                    # Replace problematic strings
                     df[col] = df[col].astype(str)
-                    df[col] = df[col].replace(['nan', 'None', 'null', 'NULL'], '')
+                    df[col] = df[col].replace(['nan', 'None', 'null', 'NULL', '<NA>'], '')
                     
                     # Remove control characters
                     df[col] = df[col].str.replace(r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]', '', regex=True)
+                    
+                    # Limit text length for Excel compatibility
+                    max_length = 32000
+                    long_mask = df[col].str.len() > max_length
+                    if long_mask.any():
+                        df.loc[long_mask, col] = (
+                            df.loc[long_mask, col].str[:max_length] + "...[TRUNCATED]"
+                        )
             
             print(f"✅ Final cleanup completed. Shape: {df.shape}")
             return df
@@ -351,3 +359,77 @@ class EnhancedTelecomDataProcessor:
             print(f"❌ Error in final cleanup: {str(e)}")
             self.stats['warnings'].append(f"Final cleanup had issues: {str(e)}")
             return df
+    
+    def get_processing_summary(self):
+        """Get a comprehensive summary of processing results"""
+        return {
+            'overview': {
+                'total_rows_processed': self.stats['processed_rows'],
+                'chunks_processed': self.stats['chunks_processed'],
+                'processing_time': self.stats['processing_time'],
+                'success_rate': f"{(self.stats['processed_rows'] / max(self.stats['total_rows'], 1)) * 100:.1f}%"
+            },
+            'cleaning': self.stats.get('cleaning_stats', {}),
+            'extraction': {
+                'fields_available': self.stats['extracted_fields'],
+                'extraction_stats': self.stats.get('extraction_stats', {})
+            },
+            'issues': {
+                'errors': len(self.stats['errors']),
+                'warnings': len(self.stats['warnings'])
+            }
+        }
+    
+    def preview_processing(self, file_path, obs_column='obs', sample_size=3):
+        """Preview what processing will do on a small sample"""
+        try:
+            # Read just a few rows
+            df_sample = pd.read_csv(file_path, nrows=sample_size)
+            
+            if obs_column not in df_sample.columns:
+                return {'error': f"Column '{obs_column}' not found"}
+            
+            preview_results = []
+            
+            for idx, text in df_sample[obs_column].items():
+                if pd.isna(text) or not isinstance(text, str):
+                    continue
+                
+                # Clean text
+                cleaned = self.cleaner.clean_text(text)
+                cleaning_stats = self.cleaner.get_cleaning_stats(text, cleaned)
+                
+                # Extract fields
+                extracted = self.extractor.extract_all_fields(cleaned)
+                
+                preview_results.append({
+                    'row_index': idx,
+                    'original_length': len(text),
+                    'cleaned_length': len(cleaned),
+                    'cleaning_reduction': cleaning_stats.get('reduction_percent', 0),
+                    'fields_extracted': sum(1 for v in extracted.values() if v is not None),
+                    'sample_extracted_fields': {k: v for k, v in extracted.items() if v is not None}
+                })
+            
+            return {
+                'success': True,
+                'sample_results': preview_results,
+                'total_extractable_fields': len(self.extractor.get_field_list())
+            }
+            
+        except Exception as e:
+            return {'error': f"Preview failed: {str(e)}"}
+    
+    # Backward compatibility method
+    def process_csv_simple(self, file_path, obs_column='obs', chunk_size=None, progress_callback=None):
+        """Backward compatibility wrapper"""
+        if chunk_size:
+            self.chunk_size = chunk_size
+        
+        return self.process_csv(
+            file_path=file_path,
+            obs_column=obs_column,
+            enable_cleaning=True,
+            enable_extraction=True,
+            progress_callback=progress_callback
+        )

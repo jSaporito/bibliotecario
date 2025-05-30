@@ -30,11 +30,11 @@
                         </label>
                         {{ form.file(class="form-control") }}
                         {% if form.file.errors %}
-                            <div class="text-danger mt-1">
-                                {% for error in form.file.errors %}
-                                    <small>{{ error }}</small>
-                                {% endfor %}
-                            </div>
+                        <div class="text-danger mt-1">
+                            {% for error in form.file.errors %}
+                            <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
                         {% endif %}
                         <div class="form-text">
                             <i class="fas fa-info-circle me-1"></i>
@@ -49,11 +49,11 @@
                         </label>
                         {{ form.obs_column(class="form-control") }}
                         {% if form.obs_column.errors %}
-                            <div class="text-danger mt-1">
-                                {% for error in form.obs_column.errors %}
-                                    <small>{{ error }}</small>
-                                {% endfor %}
-                            </div>
+                        <div class="text-danger mt-1">
+                            {% for error in form.obs_column.errors %}
+                            <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
                         {% endif %}
                         <div class="form-text">{{ form.obs_column.description }}</div>
                     </div>
@@ -66,15 +66,15 @@
                             </label>
                             {{ form.chunk_size(class="form-control") }}
                             {% if form.chunk_size.errors %}
-                                <div class="text-danger mt-1">
-                                    {% for error in form.chunk_size.errors %}
-                                        <small>{{ error }}</small>
-                                    {% endfor %}
-                                </div>
+                            <div class="text-danger mt-1">
+                                {% for error in form.chunk_size.errors %}
+                                <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
                             {% endif %}
                             <div class="form-text">{{ form.chunk_size.description }}</div>
                         </div>
-                        
+
                         <div class="col-md-6">
                             <label for="{{ form.export_formats.id }}" class="form-label">
                                 <i class="fas fa-download me-2"></i>{{ form.export_formats.label.text }}
@@ -92,7 +92,8 @@
                                 <div class="form-check">
                                     {{ form.enable_cleaning(class="form-check-input") }}
                                     <label class="form-check-label" for="{{ form.enable_cleaning.id }}">
-                                        <i class="fas fa-broom me-2 text-primary"></i>{{ form.enable_cleaning.label.text }}
+                                        <i class="fas fa-broom me-2 text-primary"></i>{{ form.enable_cleaning.label.text
+                                        }}
                                     </label>
                                     <div class="form-text">{{ form.enable_cleaning.description }}</div>
                                 </div>
@@ -101,8 +102,94 @@
                     </div>
 
                     <!-- Submit Button -->
-                    <div class="d-grid">
-                        {{ form.submit(class="btn btn-primary btn-lg", id="submitBtn") }}
+                    <div class="mb-4">
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-center">
+                            <!-- Main Process Button -->
+                            {{ form.submit(class="btn btn-primary btn-lg me-md-2", id="processBtn") }}
+
+                            <!-- New Analysis Button -->
+                            <button type="submit" formaction="{{ url_for('main.quick_analysis') }}"
+                                class="btn btn-outline-info btn-lg me-md-2" id="analyzeBtn">
+                                <i class="fas fa-chart-line me-2"></i>
+                                Analyze Sample First
+                            </button>
+
+                            <!-- Info Button -->
+                            <button type="button" class="btn btn-outline-secondary btn-lg" data-bs-toggle="modal"
+                                data-bs-target="#analysisInfoModal">
+                                <i class="fas fa-info-circle me-2"></i>
+                                What's This?
+                            </button>
+                        </div>
+
+                        <!-- Helper Text -->
+                        <div class="text-center mt-3">
+                            <small class="text-muted">
+                                <i class="fas fa-lightbulb me-1"></i>
+                                <strong>Tip:</strong> For large datasets (10K+ rows), use "Analyze Sample First"
+                                to optimize processing and get insights before full processing.
+                            </small>
+                        </div>
+                    </div>
+
+                    <!-- Analysis Info Modal -->
+                    <div class="modal fade" id="analysisInfoModal" tabindex="-1">
+                        <div class="modal-dialog modal-lg">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">
+                                        <i class="fas fa-chart-line me-2"></i>
+                                        Sample Analysis Feature
+                                    </h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <h6 class="text-primary">
+                                                <i class="fas fa-search-plus me-2"></i>
+                                                What Analysis Does:
+                                            </h6>
+                                            <ul class="small">
+                                                <li>Analyzes 5,000 rows from your dataset</li>
+                                                <li>Identifies noise patterns and cleaning potential</li>
+                                                <li>Discovers extractable fields (IP, VLAN, etc.)</li>
+                                                <li>Estimates processing time and results</li>
+                                                <li>Provides optimization recommendations</li>
+                                            </ul>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <h6 class="text-success">
+                                                <i class="fas fa-rocket me-2"></i>
+                                                Benefits:
+                                            </h6>
+                                            <ul class="small">
+                                                <li>Optimize processing for large datasets</li>
+                                                <li>Preview expected results before processing</li>
+                                                <li>Avoid memory issues with huge files</li>
+                                                <li>Choose best export formats</li>
+                                                <li>Estimate accurate processing time</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+
+                                    <div class="alert alert-info mt-3">
+                                        <i class="fas fa-info-circle me-2"></i>
+                                        <strong>Recommended for:</strong> Files with 10,000+ rows, complex text data,
+                                        or when you want to preview results before full processing.
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary"
+                                        data-bs-dismiss="modal">Close</button>
+                                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal"
+                                        onclick="$('#analyzeBtn').click();">
+                                        <i class="fas fa-chart-line me-2"></i>
+                                        Run Analysis
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </form>
             </div>
@@ -164,48 +251,48 @@
 
 {% block extra_scripts %}
 <script>
-$(document).ready(function() {
-    // File upload validation
-    $('#{{ form.file.id }}').change(function() {
-        const file = this.files[0];
-        if (file) {
-            const fileSize = file.size / 1024 / 1024; // MB
-            const fileName = file.name;
-            
-            // Check file size
-            if (fileSize > 100) {
-                alert('File size exceeds 100MB limit. Please choose a smaller file.');
-                $(this).val('');
-                return;
+    $(document).ready(function () {
+        // File upload validation
+        $('#{{ form.file.id }}').change(function () {
+            const file = this.files[0];
+            if (file) {
+                const fileSize = file.size / 1024 / 1024; // MB
+                const fileName = file.name;
+
+                // Check file size
+                if (fileSize > 100) {
+                    alert('File size exceeds 100MB limit. Please choose a smaller file.');
+                    $(this).val('');
+                    return;
+                }
+
+                // Check file extension
+                if (!fileName.toLowerCase().endsWith('.csv')) {
+                    alert('Please select a CSV file.');
+                    $(this).val('');
+                    return;
+                }
+
+                // Show file info
+                const fileInfo = `Selected: ${fileName} (${fileSize.toFixed(2)} MB)`;
+                $(this).next('.form-text').html(`<i class="fas fa-check-circle text-success me-1"></i>${fileInfo}`);
             }
-            
-            // Check file extension
-            if (!fileName.toLowerCase().endsWith('.csv')) {
-                alert('Please select a CSV file.');
-                $(this).val('');
-                return;
-            }
-            
-            // Show file info
-            const fileInfo = `Selected: ${fileName} (${fileSize.toFixed(2)} MB)`;
-            $(this).next('.form-text').html(`<i class="fas fa-check-circle text-success me-1"></i>${fileInfo}`);
-        }
-    });
-    
-    // Form submission
-    $('#uploadForm').submit(function() {
-        $('#submitBtn').prop('disabled', true)
-                      .html('<i class="fas fa-spinner fa-spin me-2"></i>Uploading & Starting Process...');
-        
-        // Show loading indicator
-        const loadingAlert = `
+        });
+
+        // Form submission
+        $('#uploadForm').submit(function () {
+            $('#submitBtn').prop('disabled', true)
+                .html('<i class="fas fa-spinner fa-spin me-2"></i>Uploading & Starting Process...');
+
+            // Show loading indicator
+            const loadingAlert = `
             <div class="alert alert-info" role="alert">
                 <i class="fas fa-upload me-2"></i>
                 Uploading file and starting processing. Please wait...
             </div>
         `;
-        $(this).before(loadingAlert);
+            $(this).before(loadingAlert);
+        });
     });
-});
 </script>
 {% endblock %}

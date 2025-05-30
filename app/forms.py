@@ -3,8 +3,8 @@ from flask_wtf.file import FileField, FileAllowed, FileRequired
 from wtforms import StringField, SelectField, IntegerField, BooleanField, SubmitField
 from wtforms.validators import DataRequired, NumberRange
 
-class UploadForm(FlaskForm):
-    """Simple upload form"""
+class EnhancedUploadForm(FlaskForm):
+    """Enhanced upload form with new processing options"""
     
     file = FileField(
         'CSV File',
@@ -17,26 +17,52 @@ class UploadForm(FlaskForm):
     obs_column = StringField(
         'Text Column Name',
         validators=[DataRequired()],
-        default='obs'
+        default='obs',
+        description='Column containing text data to process'
     )
     
     chunk_size = IntegerField(
-        'Chunk Size',
+        'Processing Chunk Size',
         validators=[NumberRange(min=100, max=10000)],
-        default=5000
+        default=5000,
+        description='Number of rows to process at once'
     )
     
     export_formats = SelectField(
         'Export Format',
-        choices=[('csv', 'CSV'), ('excel', 'Excel'), ('both', 'Both')],
+        choices=[
+            ('csv', 'CSV Only'), 
+            ('excel', 'Excel Only'), 
+            ('json', 'JSON Only'),           # ✅ NEW: JSON option
+            ('both', 'CSV + Excel'), 
+            ('all', 'All Formats (CSV + Excel + JSON)')  # ✅ NEW: All formats
+        ],
         default='both'
     )
     
-    # ✅ Added the missing field that templates expect
+    # ✅ NEW: Enhanced processing options
     enable_cleaning = BooleanField(
-        'Enable Text Cleaning',
+        'Enable Advanced Text Cleaning',
         default=True,
-        description='Remove line separators and noise from text'
+        description='Remove noise, separators, and unwanted text'
     )
     
-    submit = SubmitField('Process File')
+    enable_extraction = BooleanField(
+        'Enable Field Extraction',
+        default=True,
+        description='Extract structured fields (IP, VLAN, Serial, etc.)'
+    )
+    
+    extraction_mode = SelectField(
+        'Extraction Mode',
+        choices=[
+            ('standard', 'Standard Fields'),
+            ('comprehensive', 'All Available Fields'),
+            ('network_only', 'Network Fields Only'),
+            ('equipment_only', 'Equipment Fields Only')
+        ],
+        default='comprehensive',
+        description='Choose which fields to extract'
+    )
+    
+    submit = SubmitField('Start Enhanced Processing')
