@@ -7,10 +7,12 @@ import threading
 import traceback
 import re
 
-from .forms import EnhancedUploadForm as UploadForm
+# Import your form
+from app.forms import UploadForm
+
+# Import your core modules
 from core.data_processor import EnhancedTelecomDataProcessor
-from core.export_handler import EnhancedExportHandler as ExportHandler
-from core.text_cleaner import EnhancedTelecomTextCleaner
+from core.export_handler import EnhancedExportHandler
 
 bp = Blueprint('main', __name__)
 processing_status = {}
@@ -38,7 +40,7 @@ def upload():
         
         print(f"DEBUG: File saved to {upload_path}")
         
-        # Store processing config with app config values
+        # Store processing config
         processing_status[session_id] = {
             'file_path': upload_path,
             'obs_column': form.obs_column.data,
@@ -47,19 +49,109 @@ def upload():
             'status': 'processing',
             'progress': 0,
             'message': 'Starting...',
-            'debug_info': [],
-            # ✅ Pass config values directly to avoid context issues
             'download_folder': current_app.config['DOWNLOAD_FOLDER']
         }
         
-        # Start background processing with app context
-        thread = threading.Thread(target=process_file_simple_enhanced, args=(current_app._get_current_object(), session_id))
+        # Start background processing
+        thread = threading.Thread(target=process_file_simple, args=(current_app._get_current_object(), session_id))
         thread.daemon = True
         thread.start()
         
         return redirect(url_for('main.processing', session_id=session_id))
     
     return render_template('upload.html', form=form)
+
+@bp.route('/quick-analysis', methods=['POST'])
+def quick_analysis():
+    """Quick analysis of uploaded file before full processing"""
+    form = UploadForm()
+    
+    if form.validate_on_submit():
+        try:
+            # Generate session ID for this analysis
+            session_id = str(uuid.uuid4())
+            
+            # Save uploaded file temporarily
+            file = form.file.data
+            filename = secure_filename(file.filename)
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            temp_path = os.path.join(current_app.config['UPLOAD_FOLDER'], f"temp_analysis_{timestamp}_{filename}")
+            file.save(temp_path)
+            
+            print(f"🔍 Starting analysis of: {filename}")
+            
+            # Quick analysis
+            analysis = analyze_large_sample_quick(
+                temp_path, 
+                form.obs_column.data, 
+                sample_size=5000
+            )
+            
+            # Store analysis data for visual metrics
+            processing_status[session_id] = {
+                'file_path': temp_path,
+                'obs_column': form.obs_column.data,
+                'analysis_data': analysis,
+                'filename': filename,
+                'timestamp': datetime.now().isoformat()
+            }
+            
+            # Clean up temp file
+            try:
+                os.remove(temp_path)
+                print(f"🗑️ Cleaned up temp file: {temp_path}")
+            except Exception as e:
+                print(f"⚠️ Could not remove temp file: {e}")
+            
+            if 'error' in analysis:
+                flash(f'Analysis failed: {analysis["error"]}', 'error')
+                return redirect(url_for('main.upload'))
+            
+            return render_template('analysis_preview.html', 
+                                 analysis=analysis, 
+                                 form=form,
+                                 filename=filename,
+                                 session_id=session_id)
+            
+        except Exception as e:
+            flash(f'Analysis failed: {str(e)}', 'error')
+            print(f"❌ Analysis error: {str(e)}")
+            return redirect(url_for('main.upload'))
+    
+    flash('Please fix the form errors and try again', 'error')
+    return render_template('upload.html', form=form)
+
+@bp.route('/visual-analysis/<session_id>')
+def visual_analysis(session_id):
+    """Generate visual metrics analysis"""
+    if session_id not in processing_status:
+        flash('Session not found. Please run analysis first.', 'error')
+        return redirect(url_for('main.upload'))
+    
+    try:
+        config = processing_status[session_id]
+        
+        # Check if we have analysis data stored
+        if 'analysis_data' not in config:
+            flash('Please run analysis first before generating visual metrics', 'warning')
+            return redirect(url_for('main.upload'))
+        
+        analysis_data = config['analysis_data']
+        
+        # Create mock metrics for demonstration
+        mock_metrics = create_mock_visual_metrics(analysis_data)
+        executive_summary = create_mock_executive_summary(analysis_data)
+        
+        return render_template('visual_metrics.html', 
+                             metrics=mock_metrics,
+                             executive_summary=executive_summary,
+                             analysis_data=analysis_data,
+                             session_id=session_id)
+        
+    except Exception as e:
+        flash(f'Visual analysis failed: {str(e)}', 'error')
+        print(f"❌ Visual analysis error: {str(e)}")
+        return redirect(url_for('main.upload'))
 
 @bp.route('/processing/<session_id>')
 def processing(session_id):
@@ -94,10 +186,9 @@ def results(session_id):
     
     return render_template('results.html', session_id=session_id, results=status.get('results'))
 
-
-
 @bp.route('/download/<session_id>/<format>')
 def download(session_id, format):
+    """Download processed files"""
     if session_id not in processing_status:
         return jsonify({'error': 'Session not found'}), 404
     
@@ -105,209 +196,34 @@ def download(session_id, format):
     if status['status'] != 'completed':
         return jsonify({'error': 'Processing not completed'}), 400
     
-    print(f"🔍 Download request for session {session_id}, format {format}")
-    
-    # Find the requested file
+    # Find and serve the requested file
     if 'results' in status and 'download_info' in status['results']:
         for file_info in status['results']['download_info']['files']:
             if file_info['format'].lower() == format.lower():
-                stored_path = file_info['path']
-                
-                print(f"🔍 Stored path: {stored_path}")
-                print(f"🔍 File exists at stored path: {os.path.exists(stored_path)}")
-                
-                # 🔧 FIX: Try the configured download folder first
-                filename = os.path.basename(stored_path)
-                correct_path = os.path.join(current_app.config['DOWNLOAD_FOLDER'], filename)
-                
-                print(f"🔍 Correct path: {correct_path}")
-                print(f"🔍 File exists at correct path: {os.path.exists(correct_path)}")
-                
-                if os.path.exists(correct_path):
-                    print(f"✅ Sending file: {correct_path}")
-                    return send_file(correct_path, as_attachment=True)
-                elif os.path.exists(stored_path):
-                    print(f"✅ Sending file from stored path: {stored_path}")
-                    return send_file(stored_path, as_attachment=True)
-                
-                # Debug: List files in download folder
-                download_folder = current_app.config['DOWNLOAD_FOLDER']
-                print(f"📁 Files in {download_folder}:")
-                try:
-                    for f in os.listdir(download_folder):
-                        if f.endswith(('.xlsx', '.csv')):
-                            print(f"  - {f}")
-                except Exception as e:
-                    print(f"  Error listing files: {e}")
+                file_path = file_info['path']
+                if os.path.exists(file_path):
+                    return send_file(file_path, as_attachment=True)
     
-    print(f"❌ File not found for session {session_id}, format {format}")
     return jsonify({'error': 'File not found'}), 404
 
-def process_file_simple_enhanced(app, session_id):
-    """Enhanced background processing with improved text cleaning and extraction"""
-    config = processing_status[session_id]
-    
-    def update_progress(message, progress=None):
-        config['message'] = message
-        if progress is not None:
-            config['progress'] = progress
-        print(f"DEBUG: [{datetime.now().strftime('%H:%M:%S')}] {message}")
-    
-    with app.app_context():
-        try:
-            update_progress("Starting enhanced processing...", 10)
-            
-            # Use enhanced processor with text cleaning and extraction
-            processor = EnhancedTelecomDataProcessor(chunk_size=config['chunk_size'])
-            results = processor.process_csv(
-                config['file_path'],
-                obs_column=config['obs_column'],
-                enable_cleaning=True,      # ✅ NEW: Enable text cleaning
-                enable_extraction=True,    # ✅ NEW: Enable field extraction
-                progress_callback=update_progress
-            )
-            
-            if not results['success']:
-                error_details = '; '.join(results.get('errors', ['Unknown error']))
-                raise Exception(f"Enhanced processing failed: {error_details}")
-            
-            update_progress("Processing completed, starting enhanced export...", 80)
-            
-            # Use enhanced exporter
-            from core.export_handler import EnhancedExportHandler
-            exporter = EnhancedExportHandler()
-            
-            download_folder = current_app.config['DOWNLOAD_FOLDER']
-            filename_base = f"enhanced_processed_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-            
-            # Handle export formats
-            if config['export_formats'] == 'both':
-                export_formats = ['csv', 'excel', 'json']  # ✅ NEW: Added JSON support
-            else:
-                export_formats = [config['export_formats']]
-            
-            # Enhanced export with detailed statistics
-            export_results = exporter.export_data(
-                results['dataframe'],
-                download_folder,
-                filename_base,
-                export_formats
-            )
-            
-            if not export_results['success']:
-                error_details = '; '.join(export_results.get('errors', ['Export failed']))
-                raise Exception(f"Enhanced export failed: {error_details}")
-            
-            # Success - with enhanced statistics
-            config.update({
-                'status': 'completed',
-                'progress': 100,
-                'message': 'Enhanced processing completed successfully!',
-                'results': {
-                    'stats': {
-                        **results['stats'],
-                        'enhancement_info': {
-                            'text_cleaning_applied': True,
-                            'field_extraction_applied': True,
-                            'export_formats': len(export_formats)
-                        }
-                    },
-                    'download_info': exporter.create_download_info(export_results)
-                }
-            })
-            
-            update_progress("Enhanced processing completed!", 100)
-            
-            # Print enhanced results summary
-            print("🎉 Enhanced Processing Results:")
-            print(f"  - Text cleaning: {results['stats'].get('cleaning_stats', {})}")
-            print(f"  - Field extraction: {results['stats'].get('extraction_stats', {})}")
-            print(f"  - Export formats: {len(export_formats)}")
-            
-            # Cleanup
-            try:
-                os.remove(config['file_path'])
-                print(f"🗑️ Cleaned up uploaded file: {config['file_path']}")
-            except Exception as e:
-                print(f"⚠️ Cleanup warning: {str(e)}")
-                
-        except Exception as e:
-            error_msg = f"Enhanced processing error: {str(e)}"
-            print(f"❌ {error_msg}")
-            print(traceback.format_exc())
-            
-            config.update({
-                'status': 'error',
-                'message': error_msg
-            })
-            
-@bp.route('/quick-analysis', methods=['POST'])
-def quick_analysis():
-    """Quick analysis of uploaded file before full processing"""
-    form = UploadForm()
-    
-    if form.validate_on_submit():
-        try:
-            # Save uploaded file temporarily
-            file = form.file.data
-            filename = secure_filename(file.filename)
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            temp_path = os.path.join(current_app.config['UPLOAD_FOLDER'], f"temp_analysis_{timestamp}_{filename}")
-            file.save(temp_path)
-            
-            print(f"🔍 Starting quick analysis of: {filename}")
-            
-            # Quick analysis
-            analysis = analyze_large_sample_quick(
-                temp_path, 
-                form.obs_column.data, 
-                sample_size=5000  # Analyze 5K rows for good representation
-            )
-            
-            # Clean up temp file
-            try:
-                os.remove(temp_path)
-                print(f"🗑️ Cleaned up temp file: {temp_path}")
-            except Exception as e:
-                print(f"⚠️ Could not remove temp file: {e}")
-            
-            if 'error' in analysis:
-                flash(f'Analysis failed: {analysis["error"]}', 'error')
-                return redirect(url_for('main.upload'))
-            
-            return render_template('analysis_preview.html', 
-                                 analysis=analysis, 
-                                 form=form,
-                                 filename=filename)
-            
-        except Exception as e:
-            flash(f'Analysis failed: {str(e)}', 'error')
-            print(f"❌ Analysis error: {str(e)}")
-            return redirect(url_for('main.upload'))
-    
-    # If form validation fails
-    flash('Please fix the form errors and try again', 'error')
-    return render_template('upload.html', form=form)
+# HELPER FUNCTIONS
 
 def analyze_large_sample_quick(file_path, obs_column='obs', sample_size=5000):
     """Quick analysis of large sample for optimization"""
     import pandas as pd
-    import re
-    from collections import Counter
     
     try:
         print(f"🔍 Analyzing up to {sample_size:,} rows for pattern optimization...")
         
         # Read file info first
         try:
-            # Get total rows efficiently
             with open(file_path, 'r', encoding='utf-8') as f:
-                total_rows = sum(1 for _ in f) - 1  # -1 for header
+                total_rows = sum(1 for _ in f) - 1
         except:
             total_rows = 0
         
         # Read a sample for analysis
-        read_size = min(sample_size * 2, total_rows)  # Read extra to ensure enough data
+        read_size = min(sample_size * 2, total_rows)
         df = pd.read_csv(file_path, nrows=read_size, low_memory=False)
         
         print(f"📖 Read {len(df):,} rows from file")
@@ -355,11 +271,10 @@ def analyze_large_sample_quick(file_path, obs_column='obs', sample_size=5000):
             'avg_lines': round(lines.mean(), 1),
         }
         
-        # Sample subset for pattern analysis (for performance)
+        # Pattern analysis
         sample_for_patterns = obs_texts.head(min(1000, len(obs_texts)))
-        print(f"🔍 Analyzing patterns in {len(sample_for_patterns):,} entries...")
         
-        # Noise pattern analysis
+        # Noise patterns
         noise_counts = {
             'separator_lines': 0,
             'empty_lines': 0,
@@ -376,7 +291,7 @@ def analyze_large_sample_quick(file_path, obs_column='obs', sample_size=5000):
             'command_noise': r'^\s*(quit|exit|end|return)\s*$'
         }
         
-        # Field pattern analysis
+        # Field patterns
         field_counts = {
             'ip_addresses': 0,
             'vlan_ids': 0,
@@ -415,14 +330,13 @@ def analyze_large_sample_quick(file_path, obs_column='obs', sample_size=5000):
                 for name, pattern in field_patterns.items():
                     matches = len(re.findall(pattern, text, re.IGNORECASE))
                     field_counts[name] += matches
-            except Exception as e:
-                continue  # Skip problematic texts
+            except Exception:
+                continue
         
         analysis['noise_analysis'] = noise_counts
         analysis['field_analysis'] = field_counts
         
-        # Calculate potential impact
-        total_noise = sum(noise_counts.values())
+        # Calculate recommendations
         total_fields = sum(field_counts.values())
         
         # Estimate cleaning impact
@@ -430,7 +344,6 @@ def analyze_large_sample_quick(file_path, obs_column='obs', sample_size=5000):
         cleaned_sample = simulate_text_cleaning(sample_for_cleaning)
         reduction_percent = round(100 * (1 - len(cleaned_sample) / len(sample_for_cleaning)), 1) if len(sample_for_cleaning) > 0 else 0
         
-        # Generate recommendations
         analysis['recommendations'] = {
             'cleaning_impact': {
                 'reduction_percent': reduction_percent,
@@ -449,19 +362,12 @@ def analyze_large_sample_quick(file_path, obs_column='obs', sample_size=5000):
             }
         }
         
-        print(f"✅ Analysis completed:")
-        print(f"   - Sample size: {len(df_obs):,} rows")
-        print(f"   - Noise items found: {total_noise:,}")
-        print(f"   - Fields found: {total_fields:,}")
-        print(f"   - Text reduction potential: {reduction_percent}%")
-        
+        print(f"✅ Analysis completed successfully")
         return analysis
         
     except Exception as e:
         error_msg = f"Sample analysis failed: {str(e)}"
         print(f"❌ {error_msg}")
-        import traceback
-        print(traceback.format_exc())
         return {'error': error_msg}
 
 def simulate_text_cleaning(text):
@@ -470,33 +376,175 @@ def simulate_text_cleaning(text):
         return text
     
     cleaned = text
-    
-    # Remove common noise patterns
     cleaned = re.sub(r'^[-=_~*+#]{5,}.*$', '', cleaned, flags=re.MULTILINE)
     cleaned = re.sub(r'^#+\s*$', '', cleaned, flags=re.MULTILINE)
     cleaned = re.sub(r'\n{3,}', '\n\n', cleaned)
     cleaned = re.sub(r'[ \t]{3,}', ' ', cleaned)
     cleaned = re.sub(r'^\s+$', '', cleaned, flags=re.MULTILINE)
     
-    return cleaned.strip()        
+    return cleaned.strip()
 
-# Simple debug endpoint
-@bp.route('/debug/<session_id>')
-def debug_info(session_id):
-    """Simple debug information"""
-    if session_id not in processing_status:
-        return "Session not found", 404
+def create_mock_visual_metrics(analysis_data):
+    """Create mock visual metrics for demonstration"""
+    return {
+        'charts': {
+            'data_quality': 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+            'processing_efficiency': 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+            'field_extraction': 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+            'cost_savings': 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+            'time_comparison': 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+            'storage_optimization': 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='
+        },
+        'business_impact': {
+            'time_savings': {
+                'hours_per_process': 40.0,
+                'days_per_process': 5.0,
+                'annual_hours_saved': 480
+            },
+            'cost_savings': {
+                'per_process': 2000,
+                'annually': 24000,
+                'roi_months': 3
+            },
+            'quality_improvements': {
+                'accuracy_increase': '25%',
+                'fields_extracted': '15,000',
+                'data_reduction': f"{analysis_data['recommendations']['cleaning_impact']['reduction_percent']}%"
+            },
+            'operational_benefits': {
+                'processing_speed': '50x faster',
+                'consistency': '100% consistent results',
+                'scalability': 'Handles any dataset size'
+            }
+        },
+        'roi_analysis': {
+            'investment': {
+                'software_annual': 2000,
+                'training_onetime': 1000,
+                'setup_onetime': 500,
+                'total_first_year': 3500
+            },
+            'returns': {
+                'annual_savings': 24000,
+                'roi_percentage': 585,
+                'payback_months': 2.6,
+                'net_benefit_year1': 20500
+            },
+            'break_even_analysis': {
+                'break_even_month': 3,
+                'monthly_savings': 2000,
+                'cumulative_benefit_3_years': 68500
+            }
+        },
+        'efficiency_gains': {
+            'processing_speed': '50x faster than manual',
+            'accuracy_improvement': '25% higher accuracy',
+            'consistency': '100% consistent results',
+            'scalability': f"Can process {analysis_data['sample_info']['total_file_rows']:,} rows without additional staff",
+            'error_reduction': '90% reduction in human errors',
+            'availability': '24/7 processing capability'
+        }
+    }
+
+def create_mock_executive_summary(analysis_data):
+    """Create mock executive summary"""
+    return {
+        'headline_benefits': [
+            "Save 5+ days per processing cycle",
+            "Reduce costs by $24,000 annually",
+            "Achieve 585% ROI in first year",
+            "Extract 15,000+ structured data fields"
+        ],
+        'key_metrics': {
+            'time_reduction': '50x faster',
+            'cost_savings': '$24,000/year',
+            'roi': '585%',
+            'payback': '2.6 months'
+        },
+        'competitive_advantage': [
+            "Faster time-to-insight for business decisions",
+            "Higher data quality and consistency",
+            "Scalable solution for growing data volumes",
+            "Reduced dependency on manual processes"
+        ]
+    }
+
+def process_file_simple(app, session_id):
+    """Background processing function"""
+    config = processing_status[session_id]
     
-    status = processing_status[session_id]
-    return f"""
-    <html>
-    <head><title>Debug - {session_id}</title></head>
-    <body style="font-family: monospace; padding: 20px;">
-    <h2>Status: {status.get('status', 'unknown')}</h2>
-    <h3>Progress: {status.get('progress', 0)}%</h3>
-    <h3>Message: {status.get('message', 'No message')}</h3>
-    <pre>{status}</pre>
-    <p><a href="/">Back to Home</a></p>
-    </body>
-    </html>
-    """
+    def update_progress(message, progress=None):
+        config['message'] = message
+        if progress is not None:
+            config['progress'] = progress
+        print(f"DEBUG: [{datetime.now().strftime('%H:%M:%S')}] {message}")
+    
+    with app.app_context():
+        try:
+            update_progress("Starting processing...", 10)
+            
+            # Process file
+            processor = EnhancedTelecomDataProcessor(chunk_size=config['chunk_size'])
+            results = processor.process_csv(
+                config['file_path'],
+                obs_column=config['obs_column'],
+                progress_callback=update_progress
+            )
+            
+            if not results['success']:
+                error_details = '; '.join(results.get('errors', ['Unknown error']))
+                raise Exception(f"Processing failed: {error_details}")
+            
+            update_progress("Processing completed, starting export...", 80)
+            
+            # Export files
+            download_folder = current_app.config['DOWNLOAD_FOLDER']
+            exporter = EnhancedExportHandler()
+            filename_base = f"processed_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            
+            # Handle export formats
+            if config['export_formats'] == 'both':
+                export_formats = ['csv', 'excel']
+            else:
+                export_formats = [config['export_formats']]
+            
+            export_results = exporter.export_data(
+                results['dataframe'],
+                download_folder,
+                filename_base,
+                export_formats
+            )
+            
+            if not export_results['success']:
+                error_details = '; '.join(export_results.get('errors', ['Export failed']))
+                raise Exception(f"Export failed: {error_details}")
+            
+            # Success
+            config.update({
+                'status': 'completed',
+                'progress': 100,
+                'message': 'Processing completed successfully!',
+                'results': {
+                    'stats': results['stats'],
+                    'download_info': exporter.create_download_info(export_results)
+                }
+            })
+            
+            update_progress("All processing completed!", 100)
+            
+            # Cleanup
+            try:
+                os.remove(config['file_path'])
+                print(f"🗑️ Cleaned up uploaded file: {config['file_path']}")
+            except Exception as e:
+                print(f"⚠️ Cleanup warning: {str(e)}")
+                
+        except Exception as e:
+            error_msg = f"Error: {str(e)}"
+            print(f"❌ Processing error: {error_msg}")
+            print(traceback.format_exc())
+            
+            config.update({
+                'status': 'error',
+                'message': error_msg
+            })
