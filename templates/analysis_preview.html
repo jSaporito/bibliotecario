@@ -1,0 +1,527 @@
+{% extends "base.html" %}
+
+{% block title %}Analysis Preview - Bibliotecario{% endblock %}
+
+{% block extra_css %}
+<style>
+.analysis-card {
+    transition: transform 0.2s ease-in-out;
+}
+
+.analysis-card:hover {
+    transform: translateY(-5px);
+}
+
+.metric-box {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-radius: 15px;
+    padding: 1.5rem;
+    text-align: center;
+    border: 2px solid transparent;
+    transition: all 0.3s ease;
+}
+
+.metric-box:hover {
+    border-color: #007bff;
+}
+
+.progress-custom {
+    height: 25px;
+    border-radius: 15px;
+    overflow: hidden;
+}
+
+@media print {
+    .btn, .modal { display: none !important; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <!-- Analysis Header -->
+        <div class="text-center mb-4">
+            <h2 class="text-primary">
+                <i class="fas fa-chart-line me-2"></i>
+                Large Sample Analysis Results
+            </h2>
+            <p class="text-muted">Analysis of <strong>{{ filename }}</strong> to optimize processing</p>
+        </div>
+
+        {% if analysis.error %}
+        <!-- Error Display -->
+        <div class="alert alert-danger">
+            <h5><i class="fas fa-exclamation-triangle me-2"></i>Analysis Failed</h5>
+            <p>{{ analysis.error }}</p>
+            <a href="{{ url_for('main.upload') }}" class="btn btn-outline-danger">
+                <i class="fas fa-arrow-left me-2"></i>Back to Upload
+            </a>
+        </div>
+        {% else %}
+        
+        <!-- Sample Information -->
+        <div class="card analysis-card mb-4">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Sample Information
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="metric-box">
+                            <h4 class="text-info">{{ "{:,}".format(analysis.sample_info.actual_size) }}</h4>
+                            <small>Rows Analyzed</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="metric-box">
+                            <h4 class="text-info">{{ "{:,}".format(analysis.sample_info.total_file_rows) }}</h4>
+                            <small>Total File Rows</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="metric-box">
+                            <h4 class="text-info">{{ analysis.text_stats.total_mb }} MB</h4>
+                            <small>Sample Data Size</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="metric-box">
+                            <h4 class="text-info">{{ "{:,}".format(analysis.text_stats.avg_length) }}</h4>
+                            <small>Avg Text Length</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Text Statistics -->
+        <div class="row mb-4">
+            <div class="col-lg-6">
+                <div class="card analysis-card">
+                    <div class="card-header bg-primary text-white">
+                        <h6 class="mb-0">
+                            <i class="fas fa-file-alt me-2"></i>
+                            Text Statistics
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-6">
+                                <strong>Average Length:</strong><br>
+                                <span class="text-muted">{{ "{:,}".format(analysis.text_stats.avg_length) }} characters</span>
+                            </div>
+                            <div class="col-6">
+                                <strong>Median Length:</strong><br>
+                                <span class="text-muted">{{ "{:,}".format(analysis.text_stats.median_length) }} characters</span>
+                            </div>
+                        </div>
+                        <hr>
+                        <div class="row">
+                            <div class="col-6">
+                                <strong>Max Length:</strong><br>
+                                <span class="text-muted">{{ "{:,}".format(analysis.text_stats.max_length) }} characters</span>
+                            </div>
+                            <div class="col-6">
+                                <strong>Average Lines:</strong><br>
+                                <span class="text-muted">{{ analysis.text_stats.avg_lines }} lines</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-6">
+                <div class="card analysis-card">
+                    <div class="card-header bg-warning text-white">
+                        <h6 class="mb-0">
+                            <i class="fas fa-broom me-2"></i>
+                            Cleaning Impact
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-6">
+                                <strong>Text Reduction:</strong><br>
+                                <span class="text-success fs-4">{{ analysis.recommendations.cleaning_impact.reduction_percent }}%</span>
+                            </div>
+                            <div class="col-6">
+                                <strong>Space Saved:</strong><br>
+                                <span class="text-success">{{ analysis.recommendations.cleaning_impact.estimated_mb_saved }} MB</span>
+                            </div>
+                        </div>
+                        <div class="progress progress-custom">
+                            <div class="progress-bar bg-success" 
+                                 role="progressbar" 
+                                 data-width="{{ analysis.recommendations.cleaning_impact.reduction_percent }}"
+                                 aria-valuenow="{{ analysis.recommendations.cleaning_impact.reduction_percent }}" 
+                                 aria-valuemin="0" 
+                                 aria-valuemax="100">
+                                {{ analysis.recommendations.cleaning_impact.reduction_percent }}% Reduction
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Noise Analysis -->
+        <div class="row mb-4">
+            <div class="col-lg-6">
+                <div class="card analysis-card">
+                    <div class="card-header bg-secondary text-white">
+                        <h6 class="mb-0">
+                            <i class="fas fa-trash me-2"></i>
+                            Noise Patterns Found
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        {% set total_noise = analysis.noise_analysis.values()|sum %}
+                        {% if total_noise > 0 %}
+                            {% for pattern, count in analysis.noise_analysis.items() %}
+                            {% if count > 0 %}
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span>{{ pattern.replace('_', ' ').title() }}:</span>
+                                <span class="badge bg-secondary">{{ "{:,}".format(count) }}</span>
+                            </div>
+                            {% endif %}
+                            {% endfor %}
+                        {% else %}
+                        <div class="text-center text-muted">
+                            <i class="fas fa-check-circle text-success fa-2x mb-2"></i>
+                            <p>No significant noise patterns detected!</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-6">
+                <div class="card analysis-card">
+                    <div class="card-header bg-success text-white">
+                        <h6 class="mb-0">
+                            <i class="fas fa-search-plus me-2"></i>
+                            Field Extraction Potential
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-6">
+                                <strong>Total Fields Found:</strong><br>
+                                <span class="text-success fs-4">{{ "{:,}".format(analysis.recommendations.extraction_potential.total_fields_found) }}</span>
+                            </div>
+                            <div class="col-6">
+                                <strong>Fields per Record:</strong><br>
+                                <span class="text-success">{{ analysis.recommendations.extraction_potential.fields_per_record }}</span>
+                            </div>
+                        </div>
+                        
+                        <h6 class="text-success mb-2">Most Common Fields:</h6>
+                        {% for field_name, count in analysis.recommendations.extraction_potential.most_common_fields %}
+                        {% if count > 0 %}
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <small>{{ field_name.replace('_', ' ').title() }}:</small>
+                            <span class="badge bg-success">{{ "{:,}".format(count) }}</span>
+                        </div>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Processing Recommendations -->
+        <div class="card analysis-card mb-4">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-lightbulb me-2"></i>
+                    Processing Recommendations for {{ "{:,}".format(analysis.sample_info.total_file_rows) }} Row Dataset
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="metric-box">
+                            <i class="fas fa-layer-group fa-2x text-info mb-2"></i>
+                            <h6>Chunk Size</h6>
+                            <span class="fs-5 text-info">{{ "{:,}".format(analysis.recommendations.processing_suggestions.recommended_chunk_size) }}</span>
+                            <small class="d-block text-muted">rows per chunk</small>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="metric-box">
+                            <i class="fas fa-clock fa-2x text-warning mb-2"></i>
+                            <h6>Est. Processing Time</h6>
+                            <span class="fs-5 text-warning">{{ analysis.recommendations.processing_suggestions.estimated_processing_time_minutes }}</span>
+                            <small class="d-block text-muted">minutes</small>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="metric-box">
+                            <i class="fas fa-memory fa-2x mb-2 {% if analysis.recommendations.processing_suggestions.memory_usage_warning %}text-warning{% else %}text-success{% endif %}"></i>
+                            <h6>Memory Usage</h6>
+                            <span class="fs-6">
+                                {% if analysis.recommendations.processing_suggestions.memory_usage_warning %}
+                                <i class="fas fa-exclamation-triangle text-warning"></i> High
+                                {% else %}
+                                <i class="fas fa-check-circle text-success"></i> Normal
+                                {% endif %}
+                            </span>
+                            <small class="d-block text-muted">memory requirement</small>
+                        </div>
+                    </div>
+                </div>
+
+                {% if analysis.recommendations.processing_suggestions.memory_usage_warning %}
+                <div class="alert alert-warning mt-3">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>Memory Warning:</strong> Your dataset is large ({{ "{:,}".format(analysis.sample_info.total_file_rows) }}+ rows). 
+                    Processing will use chunked approach to manage memory efficiently.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Expected Results -->
+        <div class="card analysis-card mb-4">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-chart-bar me-2"></i>
+                    Expected Results for Full Dataset
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% set scale_factor = analysis.sample_info.total_file_rows / analysis.sample_info.actual_size %}
+                    <div class="col-md-3">
+                        <div class="metric-box">
+                            <i class="fas fa-database fa-2x text-primary mb-2"></i>
+                            <h5>{{ "{:,}".format((analysis.recommendations.extraction_potential.total_fields_found * scale_factor)|int) }}</h5>
+                            <small>Total Fields Expected</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="metric-box">
+                            <i class="fas fa-compress-alt fa-2x text-warning mb-2"></i>
+                            <h5>{{ (analysis.recommendations.cleaning_impact.estimated_mb_saved * scale_factor)|round(1) }} MB</h5>
+                            <small>Total Space Saved</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="metric-box">
+                            <i class="fas fa-columns fa-2x text-info mb-2"></i>
+                            <h5>25+</h5>
+                            <small>New Columns Added</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="metric-box">
+                            <i class="fas fa-file-export fa-2x text-success mb-2"></i>
+                            <h5>3</h5>
+                            <small>Export Formats</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="card analysis-card">
+            <div class="card-body text-center">
+                <h5 class="mb-3">Ready to Process Your {{ "{:,}".format(analysis.sample_info.total_file_rows) }} Row Dataset?</h5>
+                <p class="text-muted mb-4">
+                    Based on this analysis, your dataset has 
+                    {% if analysis.recommendations.extraction_potential.total_fields_found > analysis.sample_info.actual_size * 0.5 %}
+                    <strong class="text-success">excellent potential</strong>
+                    {% elif analysis.recommendations.extraction_potential.total_fields_found > analysis.sample_info.actual_size * 0.2 %}
+                    <strong class="text-info">good potential</strong>
+                    {% else %}
+                    <strong class="text-warning">moderate potential</strong>
+                    {% endif %}
+                    for field extraction and will benefit 
+                    {% if analysis.recommendations.cleaning_impact.reduction_percent > 10 %}
+                    <strong class="text-success">significantly</strong>
+                    {% elif analysis.recommendations.cleaning_impact.reduction_percent > 5 %}
+                    <strong class="text-info">moderately</strong>
+                    {% else %}
+                    <strong class="text-muted">minimally</strong>
+                    {% endif %}
+                    from text cleaning.
+                </p>
+                
+                <div class="d-grid gap-2 d-md-flex justify-content-md-center">
+                    <a href="{{ url_for('main.upload') }}" class="btn btn-success btn-lg me-md-2">
+                        <i class="fas fa-rocket me-2"></i>
+                        Process Full Dataset
+                    </a>
+                    <button class="btn btn-outline-info btn-lg me-md-2" onclick="window.print()">
+                        <i class="fas fa-print me-2"></i>
+                        Save Analysis Report
+                    </button>
+                    <button class="btn btn-outline-warning btn-lg me-md-2" 
+                            data-bs-toggle="modal" data-bs-target="#processingTipsModal">
+                        <i class="fas fa-lightbulb me-2"></i>
+                        Processing Tips
+                    </button>
+                    <a href="{{ url_for('main.index') }}" class="btn btn-outline-secondary btn-lg">
+                        <i class="fas fa-home me-2"></i>
+                        Back to Home
+                    </a>
+                </div>
+                
+                <!-- Quick Stats Summary -->
+                <div class="mt-4 p-3 bg-light rounded">
+                    <h6 class="text-primary mb-2">
+                        <i class="fas fa-clipboard-list me-2"></i>Quick Summary
+                    </h6>
+                    <div class="row small">
+                        <div class="col-md-3">
+                            <strong>Cleaning:</strong> {{ analysis.recommendations.cleaning_impact.reduction_percent }}% reduction
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Extraction:</strong> {{ analysis.recommendations.extraction_potential.fields_per_record }} fields/row
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Time:</strong> ~{{ analysis.recommendations.processing_suggestions.estimated_processing_time_minutes }} minutes
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Output:</strong> {{ (analysis.text_stats.total_mb * scale_factor)|round(1) }} MB estimated
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {% endif %}
+    </div>
+</div>
+
+<!-- Processing Tips Modal -->
+<div class="modal fade" id="processingTipsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-lightbulb me-2"></i>
+                    Processing Tips for Large Datasets
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6 class="text-primary">
+                            <i class="fas fa-play-circle me-2"></i>Before Processing:
+                        </h6>
+                        <ul class="small">
+                            <li>Ensure stable internet connection</li>
+                            <li>Close unnecessary browser tabs</li>
+                            <li>Processing may take {{ analysis.recommendations.processing_suggestions.estimated_processing_time_minutes }} minutes</li>
+                            <li>Don't close the browser during processing</li>
+                            <li>Consider processing during off-peak hours</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="text-success">
+                            <i class="fas fa-check-circle me-2"></i>After Processing:
+                        </h6>
+                        <ul class="small">
+                            <li>Download files immediately</li>
+                            <li>Files available for 24 hours</li>
+                            <li>Check Excel file for detailed statistics</li>
+                            <li>JSON format contains structured data</li>
+                            <li>CSV format is best for further analysis</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <!-- Optimization Recommendations -->
+                <div class="alert alert-info mt-3">
+                    <h6 class="alert-heading">
+                        <i class="fas fa-cogs me-2"></i>Recommended Settings:
+                    </h6>
+                    <ul class="mb-0 small">
+                        <li><strong>Chunk Size:</strong> {{ "{:,}".format(analysis.recommendations.processing_suggestions.recommended_chunk_size) }} rows (optimal for your dataset)</li>
+                        <li><strong>Export Formats:</strong> 
+                            {% if analysis.sample_info.total_file_rows > 50000 %}
+                            CSV + JSON (Excel may be slow for very large datasets)
+                            {% else %}
+                            All formats (CSV + Excel + JSON)
+                            {% endif %}
+                        </li>
+                        <li><strong>Text Cleaning:</strong> Enabled (will save {{ analysis.recommendations.cleaning_impact.estimated_mb_saved }} MB)</li>
+                        <li><strong>Field Extraction:</strong> Enabled ({{ analysis.recommendations.extraction_potential.total_fields_found }} fields found in sample)</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <a href="{{ url_for('main.upload') }}" class="btn btn-primary">
+                    <i class="fas fa-rocket me-2"></i>Start Processing
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+$(document).ready(function() {
+    // Show processing tips automatically for large datasets
+    {% if analysis.sample_info.total_file_rows > 20000 %}
+    setTimeout(function() {
+        $('#processingTipsModal').modal('show');
+    }, 3000);
+    {% endif %}
+    
+    // Add animation to progress bars
+    $('.progress-bar').each(function() {
+        const $this = $(this);
+        const width = $this.data('width') || $this.attr('aria-valuenow');
+        $this.css('width', '0%');
+        setTimeout(function() {
+            $this.animate({'width': width + '%'}, 1500);
+        }, 1000);
+    });
+    
+    // Add hover effects to metric boxes
+    $('.metric-box').hover(
+        function() { 
+            $(this).addClass('shadow-lg'); 
+        },
+        function() { 
+            $(this).removeClass('shadow-lg'); 
+        }
+    );
+    
+    // Scroll to top on page load
+    $('html, body').animate({scrollTop: 0}, 'slow');
+    
+    // Add copy functionality for quick stats
+    $('.bg-light.rounded').click(function() {
+        const text = $(this).text();
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(text);
+            $(this).append('<small class="text-success d-block mt-1">Stats copied to clipboard!</small>');
+            setTimeout(() => {
+                $(this).find('small').fadeOut();
+            }, 2000);
+        }
+    });
+});
+
+// Print optimization
+window.addEventListener('beforeprint', function() {
+    $('.modal').modal('hide');
+    $('.btn').hide();
+});
+
+window.addEventListener('afterprint', function() {
+    $('.btn').show();
+});
+</script>
+{% endblock %}

@@ -4,15 +4,12 @@ import logging
 
 def create_app():
     """Simple Flask app factory"""
-    # Create Flask app with correct template folder
     app = Flask(__name__, 
-                template_folder='../templates',  # Point to templates folder
-                static_folder='../static')        # Point to static folder
+                template_folder='../templates',  
+                static_folder='../static')        
     
-    # Get the project root (one level up from app/)
     project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     
-    # Basic config with ABSOLUTE PATHS
     app.config.update({
         'UPLOAD_FOLDER': os.path.join(project_root, 'uploads'),
         'DOWNLOAD_FOLDER': os.path.join(project_root, 'downloads'),
@@ -20,14 +17,11 @@ def create_app():
         'SECRET_KEY': 'dev-secret-key-change-in-production'
     })
     
-    # Create directories
     for folder in [app.config['UPLOAD_FOLDER'], app.config['DOWNLOAD_FOLDER']]:
         os.makedirs(folder, exist_ok=True)
     
-    # Setup logging
     logging.basicConfig(level=logging.INFO)
     
-    # Register routes
     from app.routes import bp
     app.register_blueprint(bp)
     
