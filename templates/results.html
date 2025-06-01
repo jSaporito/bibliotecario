@@ -41,8 +41,21 @@
                             Download Your Processed Data
                         </h5>
                     </div>
-                    <div class="card-body">
+              <div class="card-body">
                         {% if results.download_info and results.download_info.files %}
+                        
+                        <!-- Consolidated Files Only -->
+                        <div class="alert alert-success mb-4">
+                            <h6 class="alert-heading">
+                                <i class="fas fa-file-excel me-2"></i>
+                                Arquivos Consolidados por Grupo de Produto
+                            </h6>
+                            <p class="mb-0">
+                                Seus dados foram organizados em um arquivo Excel consolidado com planilhas separadas 
+                                para cada grupo de produto, contendo apenas as colunas relevantes.
+                            </p>
+                        </div>
+                        
                         <div class="row">
                             {% for file in results.download_info.files %}
                             <div class="col-md-6 mb-3">
@@ -56,8 +69,15 @@
                                         <i class="fas fa-file-code fa-3x text-info mb-3"></i>
                                         {% endif %}
 
-                                        <h6>{{ file.format }} Formato</h6>
+                                        <h6>{{ file.format }}{% if file.description %} - {{ file.description }}{% endif %}</h6>
                                         <p class="text-muted small">{{ file.size_mb }} MB</p>
+                                        
+                                        {% if file.format == 'EXCEL' and file.description %}
+                                        <p class="text-info small">
+                                            <i class="fas fa-info-circle me-1"></i>
+                                            Contém planilhas separadas por grupo de produto
+                                        </p>
+                                        {% endif %}
 
                                         <a href="{{ url_for('main.download', session_id=session_id, format=file.format.lower()) }}"
                                             class="btn btn-primary">
@@ -73,7 +93,7 @@
                         <div class="alert alert-info mt-3">
                             <i class="fas fa-info-circle me-2"></i>
                             <strong>Arquivos prontos para download!</strong>
-                            Files will be available for 24 hours.
+                            O arquivo Excel contém planilhas separadas para cada grupo de produto com apenas as colunas relevantes.
                         </div>
                         {% else %}
                         <div class="alert alert-warning">
@@ -215,7 +235,7 @@
                                 Grupos de Produto Processados com Sucesso
                             </h6>
                             <p class="mb-0">
-                                Seu arquivo foi processado considerando os grupos de produto. 
+                                Seu arquivo foi processado considerando os grupos de produto.
                                 Use "Ver Análise de Extração" para ver os resultados detalhados de cada grupo.
                             </p>
                         </div>
@@ -235,7 +255,7 @@
                         Processamento Genérico Realizado
                     </h6>
                     <p class="mb-0">
-                        O arquivo foi processado sem classificação por grupos de produto. 
+                        O arquivo foi processado sem classificação por grupos de produto.
                         Para análise otimizada, inclua uma coluna 'product_group' em futuros uploads.
                     </p>
                 </div>

@@ -185,13 +185,35 @@ def download(session_id, format):
                     return send_file(file_path, as_attachment=True)
     
     return jsonify({'error': 'Arquivo não encontrado'}), 404
+# Add this new route after the existing download route in app/routes.py
+
+@bp.route('/download/<session_id>/<format>/<group_key>')
+def download_group(session_id, format, group_key):
+    """Download files for specific product group"""
+    if session_id not in processing_status:
+        return jsonify({'error': 'Sessão não encontrada'}), 404
+    
+    status = processing_status[session_id]
+    if status['status'] != 'completed':
+        return jsonify({'error': 'Processamento não concluído'}), 400
+    
+    # Find and serve the requested group file
+    if 'results' in status and 'download_info' in status['results']:
+        for file_info in status['results']['download_info']['files']:
+            if (file_info['format'].lower() == format.lower() and 
+                file_info.get('product_group') == group_key):
+                file_path = file_info['path']
+                if os.path.exists(file_path):
+                    return send_file(file_path, as_attachment=True)
+    
+    return jsonify({'error': 'Arquivo do grupo não encontrado'}), 404
 
 # ===============================
 # PROCESSING FUNCTIONS
 # ===============================
 
 def process_file(app, session_id):
-    """Background file processing"""
+    """Background file processing with product group support"""
     config = processing_status[session_id]
     
     def update_progress(message, progress=None):
@@ -222,7 +244,7 @@ def process_file(app, session_id):
             
             update_progress("Exportando arquivos...", 85)
             
-            # Export files
+            # Export files with product group support
             download_folder = current_app.config['DOWNLOAD_FOLDER']
             exporter = EnhancedExportHandler()
             filename_base = f"extracted_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
@@ -236,11 +258,13 @@ def process_file(app, session_id):
             else:
                 export_formats = [config['export_formats']]
             
+            # Export with product group manager - THIS IS THE KEY CHANGE
             export_results = exporter.export_data(
-                results['dataframe'],
-                download_folder,
-                filename_base,
-                export_formats
+                dataframe=results['dataframe'],
+                output_dir=download_folder,
+                filename_base=filename_base,
+                formats=export_formats,
+                product_group_manager=processor.group_manager  # Pass the group manager
             )
             
             if not export_results['success']:
@@ -248,7 +272,7 @@ def process_file(app, session_id):
             
             update_progress("Processamento concluído!", 100)
             
-            # Store results
+            # Store results with enhanced download info
             config.update({
                 'status': 'completed',
                 'progress': 100,
@@ -257,7 +281,7 @@ def process_file(app, session_id):
                     'stats': results['stats'],
                     'dataframe': results['dataframe'],
                     'download_info': exporter.create_download_info(export_results),
-                    'has_product_groups': 'product_group' in results['dataframe'].columns
+                    'has_product_groups': 'product_group' in results['dataframe'].columns and processor.group_manager is not None
                 }
             })
             
