@@ -5,30 +5,17 @@ import uuid
 from datetime import datetime
 import threading
 import traceback
-import re
 import pandas as pd
-import io
-import base64
 
-# Import forms and core modules
+# Import core modules
 from app.forms import UploadForm
 from core.data_processor import GroupBasedDataProcessor
 from core.export_handler import EnhancedExportHandler
-from core.text_cleaner import GroupBasedTextCleaner  
-from core.text_extractor import GroupBasedTextExtractor
-from core.data_visualizer import GroupBasedDataVisualizer, create_group_based_visualization_report
+from core.data_visualizer import GroupBasedDataVisualizer
 from core.product_groups import product_group_manager
 
 bp = Blueprint('main', __name__)
 processing_status = {}
-
-import sys
-def debug_excepthook(exc_type, exc_value, exc_traceback):
-    if 'Invalid format specifier' in str(exc_value):
-        print(f'FORMAT ERROR: {exc_value}')
-        traceback.print_exception(exc_type, exc_value, exc_traceback)
-    sys.__excepthook__(exc_type, exc_value, exc_traceback)
-sys.excepthook = debug_excepthook    
 
 @bp.route('/')
 def index():
@@ -37,7 +24,7 @@ def index():
 
 @bp.route('/upload', methods=['GET', 'POST'])
 def upload():
-    """File upload and processing with product group support"""
+    """File upload and processing"""
     form = UploadForm()
     
     if form.validate_on_submit():
@@ -51,24 +38,18 @@ def upload():
         upload_path = os.path.join(current_app.config['UPLOAD_FOLDER'], f"{timestamp}_{filename}")
         file.save(upload_path)
         
-        print(f"✅ File saved to {upload_path}")
-        
         # Store processing config
         processing_status[session_id] = {
             'file_path': upload_path,
-            'obs_column': form.obs_column.data,
             'chunk_size': form.chunk_size.data,
             'export_formats': form.export_formats.data,
-            'enable_cleaning': getattr(form, 'enable_cleaning', True),
-            'enable_extraction': getattr(form, 'enable_extraction', True),
             'status': 'processing',
             'progress': 0,
-            'message': 'Iniciando processamento avançado...',
-            'download_folder': current_app.config['DOWNLOAD_FOLDER']
+            'message': 'Iniciando processamento...',
         }
         
-        # Start background processing with product group support
-        thread = threading.Thread(target=process_file_enhanced, args=(current_app._get_current_object(), session_id))
+        # Start background processing
+        thread = threading.Thread(target=process_file, args=(current_app._get_current_object(), session_id))
         thread.daemon = True
         thread.start()
         
@@ -78,45 +59,26 @@ def upload():
 
 @bp.route('/quick-analysis', methods=['POST'])
 def quick_analysis():
-    """Enhanced quick analysis with product group detection"""
+    """Quick analysis of sample data"""
     form = UploadForm()
     
     if form.validate_on_submit():
         try:
-            # Generate session ID for this analysis
-            session_id = str(uuid.uuid4())
-            
-            # Save uploaded file temporarily
+            # Save file temporarily
             file = form.file.data
             filename = secure_filename(file.filename)
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            temp_path = os.path.join(current_app.config['UPLOAD_FOLDER'], f"temp_analysis_{timestamp}_{filename}")
+            temp_path = os.path.join(current_app.config['UPLOAD_FOLDER'], f"temp_{timestamp}_{filename}")
             file.save(temp_path)
             
-            print(f"🔍 Starting enhanced analysis of: {filename}")
-            
-            # Enhanced analysis with product group detection
-            analysis = analyze_large_sample_enhanced(
-                temp_path, 
-                form.obs_column.data, 
-                sample_size=5000
-            )
-            
-            # Store analysis data for visual metrics
-            processing_status[session_id] = {
-                'file_path': temp_path,
-                'obs_column': form.obs_column.data,
-                'analysis_data': analysis,
-                'filename': filename,
-                'timestamp': datetime.now().isoformat()
-            }
+            # Analyze sample
+            analysis = analyze_sample(temp_path)
             
             # Clean up temp file
             try:
                 os.remove(temp_path)
-                print(f"🗑️ Cleaned up temp file: {temp_path}")
-            except Exception as e:
-                print(f"⚠️ Could not remove temp file: {e}")
+            except:
+                pass
             
             if 'error' in analysis:
                 flash(f'Análise falhou: {analysis["error"]}', 'error')
@@ -125,219 +87,14 @@ def quick_analysis():
             return render_template('analysis_preview.html', 
                                  analysis=analysis, 
                                  form=form,
-                                 filename=filename,
-                                 session_id=session_id)
+                                 filename=filename)
             
         except Exception as e:
             flash(f'Análise falhou: {str(e)}', 'error')
-            print(f"❌ Analysis error: {str(e)}")
             return redirect(url_for('main.upload'))
     
-    flash('Corrija os erros do formulário e tente novamente', 'error')
     return render_template('upload.html', form=form)
 
-@bp.route('/product-group-analysis/<session_id>')
-def product_group_analysis(session_id):
-    """Product group specific analysis and completeness report"""
-    if session_id not in processing_status:
-        flash('Sessão não encontrada. Execute o processamento primeiro.', 'error')
-        return redirect(url_for('main.upload'))
-    
-    try:
-        config = processing_status[session_id]
-        
-        # Check if processing is completed
-        if config.get('status') != 'completed':
-            flash('Processamento ainda não foi concluído.', 'warning')
-            return redirect(url_for('main.processing', session_id=session_id))
-        
-        # Check if we have the necessary data
-        if 'results' not in config or 'dataframe' not in config['results']:
-            flash('Dados processados não encontrados.', 'error')
-            return redirect(url_for('main.results', session_id=session_id))
-        
-        # Load processed data
-        processed_df = config['results']['dataframe']
-        
-        # Generate product group analysis
-        group_analysis = analyze_product_group_completeness(processed_df)
-        
-        # Get processing summary if available
-        processing_summary = config['results'].get('processing_summary', {})
-        group_completeness = processing_summary.get('group_completeness', {})
-        
-        return render_template('product_group_analysis.html', 
-                             group_analysis=group_analysis,
-                             group_completeness=group_completeness,
-                             processing_summary=processing_summary,
-                             session_id=session_id)
-        
-    except Exception as e:
-        flash(f'Erro ao gerar análise de grupos de produtos: {str(e)}', 'error')
-        print(f"❌ Product group analysis error: {str(e)}")
-        return redirect(url_for('main.results', session_id=session_id))
-
-@bp.route('/data-visualization/<session_id>')
-def data_visualization(session_id):
-    """Generate and display group-based data visualization analysis"""
-    if session_id not in processing_status:
-        flash('Sessão não encontrada. Execute o processamento primeiro.', 'error')
-        return redirect(url_for('main.upload'))
-    
-    try:
-        config = processing_status[session_id]
-        
-        # Check if processing is completed
-        if config.get('status') != 'completed':
-            flash('Processamento ainda não foi concluído.', 'warning')
-            return redirect(url_for('main.processing', session_id=session_id))
-        
-        # Check if we have the necessary data
-        if 'results' not in config or 'dataframe' not in config['results']:
-            flash('Dados processados não encontrados.', 'error')
-            return redirect(url_for('main.results', session_id=session_id))
-        
-        # Load processed data
-        processed_df = config['results']['dataframe']
-        print(f"✅ Loaded processed dataframe: {processed_df.shape}")
-        
-        # Verify we have valid dataframes
-        if processed_df is None or processed_df.empty:
-            flash('Dados processados estão vazios.', 'error')
-            return redirect(url_for('main.results', session_id=session_id))
-        
-        # Generate group-based visualization report
-        print(f"🎨 Generating group-based visualization report for session {session_id}")
-        
-        # Use the new group-based visualizer
-        visualization_report = create_group_based_visualization_report(
-            processed_df, 
-            product_group_manager,
-            'product_group'
-        )
-        
-        return render_template('group_data_visualization.html', 
-                             report=visualization_report,
-                             session_id=session_id)
-        
-    except Exception as e:
-        flash(f'Erro ao gerar visualizações baseadas em grupos: {str(e)}', 'error')
-        print(f"❌ Group visualization error: {str(e)}")
-        import traceback
-        print(traceback.format_exc())
-        return redirect(url_for('main.results', session_id=session_id))
-
-@bp.route('/visual-analysis/<session_id>')
-def visual_analysis(session_id):
-    """Generate visual charts for product group extraction analysis"""
-    if session_id not in processing_status:
-        flash('Sessão não encontrada. Execute a análise primeiro.', 'error')
-        return redirect(url_for('main.upload'))
-    
-    try:
-        config = processing_status[session_id]
-        
-        if 'analysis_data' not in config:
-            flash('Execute a análise primeiro antes de gerar métricas visuais', 'warning')
-            return redirect(url_for('main.upload'))
-        
-        analysis_data = config['analysis_data']
-        sample_info = analysis_data.get('sample_info', {})
-        product_groups = sample_info.get('product_groups_info', {})
-        
-        if not product_groups:
-            flash('Nenhum grupo de produto encontrado para gerar gráficos', 'warning')
-            return redirect(url_for('main.upload'))
-        
-        # Generate actual bar charts
-        charts = generate_product_group_charts(product_groups, analysis_data)
-        
-        return render_template('product_group_charts.html', 
-                             charts=charts,
-                             product_groups=product_groups,
-                             analysis_data=analysis_data,
-                             session_id=session_id)
-        
-    except Exception as e:
-        flash(f'Erro ao gerar gráficos: {str(e)}', 'error')
-        print(f"❌ Chart generation error: {str(e)}")
-        import traceback
-        print(traceback.format_exc())
-        return redirect(url_for('main.upload'))
-
-def generate_product_group_charts(product_groups, analysis_data):
-    """Generate actual bar charts for product group analysis"""
-    import matplotlib.pyplot as plt
-    import io
-    import base64
-    
-    charts = {}
-    
-    try:
-        # Chart 1: Records by Product Group
-        plt.figure(figsize=(12, 6))
-        group_names = [info['name'][:30] for info in product_groups.values()]  # Truncate long names
-        record_counts = [info['record_count'] for info in product_groups.values()]
-        
-        bars = plt.bar(range(len(group_names)), record_counts, color=['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728'])
-        plt.title('Registros por Grupo de Produto', fontsize=14, fontweight='bold')
-        plt.ylabel('Número de Registros')
-        plt.xticks(range(len(group_names)), group_names, rotation=45, ha='right')
-        
-        # Add value labels on bars
-        for bar, count in zip(bars, record_counts):
-            plt.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.5, 
-                    str(count), ha='center', va='bottom', fontweight='bold')
-        
-        plt.tight_layout()
-        charts['records_by_group'] = fig_to_base64(plt)
-        plt.close()
-        
-        # Chart 2: Mandatory Fields by Group
-        plt.figure(figsize=(12, 6))
-        mandatory_counts = [info['mandatory_field_count'] for info in product_groups.values()]
-        
-        bars = plt.bar(range(len(group_names)), mandatory_counts, color=['#9467bd', '#8c564b', '#e377c2', '#7f7f7f'])
-        plt.title('Campos Obrigatórios por Grupo de Produto', fontsize=14, fontweight='bold')
-        plt.ylabel('Número de Campos Obrigatórios')
-        plt.xticks(range(len(group_names)), group_names, rotation=45, ha='right')
-        
-        # Add value labels on bars
-        for bar, count in zip(bars, mandatory_counts):
-            plt.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.1, 
-                    str(count), ha='center', va='bottom', fontweight='bold')
-        
-        plt.tight_layout()
-        charts['mandatory_fields_by_group'] = fig_to_base64(plt)
-        plt.close()
-        
-        # Chart 3: Group Distribution (Pie Chart)
-        plt.figure(figsize=(10, 8))
-        colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd']
-        
-        plt.pie(record_counts, labels=group_names, autopct='%1.1f%%', colors=colors, startangle=90)
-        plt.title('Distribuição de Registros por Grupo', fontsize=14, fontweight='bold')
-        plt.axis('equal')
-        
-        plt.tight_layout()
-        charts['group_distribution'] = fig_to_base64(plt)
-        plt.close()
-        
-        return charts
-        
-    except Exception as e:
-        print(f"❌ Error generating charts: {e}")
-        return {}
-
-def fig_to_base64(plt):
-    """Convert matplotlib figure to base64 string"""
-    img_buffer = io.BytesIO()
-    plt.savefig(img_buffer, format='png', dpi=150, bbox_inches='tight', 
-               facecolor='white', edgecolor='none')
-    img_buffer.seek(0)
-    img_string = base64.b64encode(img_buffer.read()).decode()
-    return f"data:image/png;base64,{img_string}"
-    
 @bp.route('/processing/<session_id>')
 def processing(session_id):
     """Processing status page"""
@@ -361,7 +118,7 @@ def get_status(session_id):
 
 @bp.route('/results/<session_id>')
 def results(session_id):
-    """Results page with product group support"""
+    """Results page"""
     if session_id not in processing_status:
         return redirect(url_for('main.index'))
     
@@ -369,13 +126,45 @@ def results(session_id):
     if status['status'] != 'completed':
         return redirect(url_for('main.processing', session_id=session_id))
     
-    # Check if product groups were processed
-    has_product_groups = status.get('results', {}).get('has_product_groups', False)
-    
     return render_template('results.html', 
                          session_id=session_id, 
                          results=status.get('results'),
-                         has_product_groups=has_product_groups)
+                         has_product_groups=status.get('results', {}).get('has_product_groups', False))
+
+@bp.route('/extraction-analysis/<session_id>')
+def extraction_analysis(session_id):
+    """Generate extraction analysis charts"""
+    if session_id not in processing_status:
+        flash('Sessão não encontrada.', 'error')
+        return redirect(url_for('main.upload'))
+    
+    try:
+        config = processing_status[session_id]
+        
+        if config.get('status') != 'completed':
+            flash('Processamento não foi concluído.', 'warning')
+            return redirect(url_for('main.processing', session_id=session_id))
+        
+        if 'results' not in config or 'dataframe' not in config['results']:
+            flash('Dados processados não encontrados.', 'error')
+            return redirect(url_for('main.results', session_id=session_id))
+        
+        # Generate extraction analysis
+        processed_df = config['results']['dataframe']
+        visualizer = GroupBasedDataVisualizer(product_group_manager)
+        report = visualizer.generate_extraction_report(processed_df, 'product_group')
+        
+        if 'error' in report:
+            flash(f'Erro ao gerar análise: {report["error"]}', 'error')
+            return redirect(url_for('main.results', session_id=session_id))
+        
+        return render_template('extraction_analysis.html', 
+                             report=report,
+                             session_id=session_id)
+        
+    except Exception as e:
+        flash(f'Erro ao gerar análise de extração: {str(e)}', 'error')
+        return redirect(url_for('main.results', session_id=session_id))
 
 @bp.route('/download/<session_id>/<format>')
 def download(session_id, format):
@@ -398,57 +187,45 @@ def download(session_id, format):
     return jsonify({'error': 'Arquivo não encontrado'}), 404
 
 # ===============================
-# ENHANCED PROCESSING FUNCTIONS
+# PROCESSING FUNCTIONS
 # ===============================
 
-def process_file_enhanced(app, session_id):
-    """Enhanced background processing function with product group support"""
+def process_file(app, session_id):
+    """Background file processing"""
     config = processing_status[session_id]
     
     def update_progress(message, progress=None):
         config['message'] = message
         if progress is not None:
             config['progress'] = progress
-        print(f"📊 [{datetime.now().strftime('%H:%M:%S')}] {message}")
+        print(f"📊 {message}")
     
     with app.app_context():
         try:
-            update_progress("Iniciando processamento baseado em grupos de produto...", 5)
+            update_progress("Carregando arquivo...", 10)
             
-            # Check if CSV has product group column
-            temp_df = pd.read_csv(config['file_path'], nrows=5)
-            has_product_groups = 'product_group' in temp_df.columns
-            
-            if has_product_groups:
-                update_progress("✅ Grupos de produto detectados, otimizando extração...", 10)
-                print(f"🏷️ Product groups found in CSV")
-            else:
-                update_progress("⚠️ Nenhum grupo de produto encontrado, usando processamento genérico...", 10)
-                print(f"⚠️ No product groups found, using generic processing")
-            
-            # Use the new GroupBasedDataProcessor
+            # Initialize processor
             processor = GroupBasedDataProcessor(chunk_size=config['chunk_size'])
             
-            # Call the new group-based processing method
+            # Process CSV by groups
             results = processor.process_csv_by_groups(
                 config['file_path'],
-                obs_column=config['obs_column'],
+                obs_column='obs',
                 product_group_column='product_group',
-                enable_cleaning=config.get('enable_cleaning', True),
-                enable_extraction=config.get('enable_extraction', True),
+                enable_cleaning=True,
+                enable_extraction=True,
                 progress_callback=update_progress
             )
             
             if not results['success']:
-                error_details = '; '.join(results.get('errors', ['Erro desconhecido']))
-                raise Exception(f"Processamento falhou: {error_details}")
+                raise Exception(f"Processamento falhou: {'; '.join(results.get('errors', []))}")
             
-            update_progress("Processamento concluído, iniciando exportação...", 80)
+            update_progress("Exportando arquivos...", 85)
             
-            # Export files (keep existing export logic)
+            # Export files
             download_folder = current_app.config['DOWNLOAD_FOLDER']
             exporter = EnhancedExportHandler()
-            filename_base = f"bibliotecario_processed_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            filename_base = f"extracted_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
             
             # Handle export formats
             export_formats = []
@@ -467,596 +244,142 @@ def process_file_enhanced(app, session_id):
             )
             
             if not export_results['success']:
-                error_details = '; '.join(export_results.get('errors', ['Exportação falhou']))
-                raise Exception(f"Exportação falhou: {error_details}")
+                raise Exception(f"Exportação falhou: {'; '.join(export_results.get('errors', []))}")
             
-            update_progress("Gerando relatórios de completude por grupo...", 90)
+            update_progress("Processamento concluído!", 100)
             
-            # Get group-based processing summary
-            processing_summary = processor.get_group_processing_report()
-            
-            # Success - store comprehensive results
+            # Store results
             config.update({
                 'status': 'completed',
                 'progress': 100,
-                'message': 'Processamento baseado em grupos concluído com sucesso!',
+                'message': 'Processamento concluído com sucesso!',
                 'results': {
                     'stats': results['stats'],
                     'dataframe': results['dataframe'],
                     'download_info': exporter.create_download_info(export_results),
-                    'has_product_groups': has_product_groups,
-                    'processing_summary': processing_summary,
-                    'group_summary': results.get('group_summary', {})
+                    'has_product_groups': 'product_group' in results['dataframe'].columns
                 }
             })
-            
-            update_progress("Todos os processamentos baseados em grupos concluídos!", 100)
             
             # Clean up uploaded file
             try:
                 os.remove(config['file_path'])
-                print(f"🗑️ Arquivo temporário removido: {config['file_path']}")
-            except Exception as e:
-                print(f"⚠️ Aviso de limpeza: {str(e)}")
+            except:
+                pass
                 
         except Exception as e:
             error_msg = f"Erro: {str(e)}"
-            print(f"❌ Erro de processamento baseado em grupos: {error_msg}")
-            print(traceback.format_exc())
-            
+            print(f"❌ {error_msg}")
             config.update({
                 'status': 'error',
                 'message': error_msg
             })
 
-def analyze_large_sample_enhanced(file_path, obs_column='obs', sample_size=5000):
-    """Enhanced quick analysis with product group detection"""
-    import pandas as pd
+def analyze_sample(file_path, sample_size=5000):
+    """Analyze sample data for preview"""
+    import re
     
     try:
-        print(f"🔍 Analisando até {sample_size:,} linhas com detecção de grupos de produto...")
-        
-        # Read file info first
+        # Read file info
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
                 total_rows = sum(1 for _ in f) - 1
         except:
             total_rows = 0
         
-        # Read a sample for analysis
+        # Read sample
         read_size = min(sample_size * 2, total_rows)
         df = pd.read_csv(file_path, nrows=read_size, low_memory=False)
         
-        print(f"📖 Lidas {len(df):,} linhas do arquivo")
-        
-        # Check if obs column exists
-        if obs_column not in df.columns:
+        if 'obs' not in df.columns:
             return {
-                'error': f"Coluna '{obs_column}' não encontrada. Colunas disponíveis: {', '.join(df.columns[:10])}"
+                'error': f"Coluna 'obs' não encontrada. Colunas disponíveis: {', '.join(df.columns[:10])}"
             }
         
-        # Check for product group column
+        # Check for product groups
         has_product_groups = 'product_group' in df.columns
         product_groups_info = {}
         
         if has_product_groups:
-            print(f"🏷️ Coluna de grupos de produto encontrada!")
-            
             for group_key in df['product_group'].dropna().unique():
                 if product_group_manager.is_valid_group(group_key):
                     group_info = product_group_manager.get_group_info(group_key)
                     group_data = df[df['product_group'] == group_key]
                     mandatory_fields = product_group_manager.get_mandatory_fields(group_key)
                     
-                    print(f"   {group_info['name']}: {len(group_data)} registros ({len(mandatory_fields)} campos obrigatórios)")
-                    
                     product_groups_info[group_key] = {
                         'name': group_info['name'],
                         'record_count': len(group_data),
-                        'percentage': round((len(group_data) / len(df)) * 100, 2),
                         'mandatory_fields': mandatory_fields,
                         'mandatory_field_count': len(mandatory_fields),
-                        'category': group_info.get('category', 'unknown'),
-                        'priority_level': group_info.get('priority_level', 'medium')
+                        'category': group_info.get('category', 'unknown')
                     }
-        else:
-            print(f"⚠️ Nenhuma coluna de grupo de produto encontrada")
         
         # Basic text analysis
-        text_data = df[obs_column].astype(str)
-        
-        # Text statistics
+        text_data = df['obs'].astype(str)
         text_stats = {
             'total_mb': round(text_data.str.len().sum() / (1024 * 1024), 2),
             'avg_length': int(text_data.str.len().mean()),
-            'median_length': int(text_data.str.len().median()),
-            'max_length': int(text_data.str.len().max()),
-            'avg_linhas': int(text_data.str.count('\n').mean() + 1)
+            'max_length': int(text_data.str.len().max())
         }
         
-        # Quick noise analysis
-        noise_analysis = {
-            'separator_lines': int(text_data.str.contains(r'^[-=_~*+#]{10,}', regex=True).sum()),
-            'empty_lines': int(text_data.str.strip().eq('').sum()),
-            'debug_lines': int(text_data.str.contains(r'(DEBUG|INFO|WARNING|ERROR):', regex=True).sum()),
-            'html_tags': int(text_data.str.contains(r'<[^>]+>', regex=True).sum()),
-            'command_noise': int(text_data.str.contains(r'^(quit|exit|end)$', regex=True).sum())
-        }
-        
-        # Quick field analysis
+        # Quick field detection in 'obs' column
         field_analysis = {}
-        sample_texts = text_data.head(min(20, len(text_data)))
+        sample_texts = text_data.head(100)
         
-        # Simple field detection patterns
+        # Look for patterns that match the existing CSV columns
         field_patterns = {
-            'ip_addresses': r'\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b',
-            'mac_addresses': r'([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})',
-            'vlans': r'VLAN\s*:?\s*\d+',
-            'serial_numbers': r'SN[:\s]*[A-Za-z0-9]+',
-            'gateways': r'GTW[:\s]*[0-9\.]+',
+            'ip_management': r'IP\s*(?:CPE|management)[:\s]*([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3})',
+            'gateway': r'GTW[:\s]*([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3})',
+            'ip_block': r'BLOCO\s*IP[:\s]*([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}/\d+)',
+            'vlan': r'VLAN\s*:?\s*(\d+)',
+            'serial_code': r'SN[:\s]*([A-Za-z0-9]+)',
+            'wifi_ssid': r'SSID[:\s]*([A-Za-z0-9_-]+)',
+            'wifi_passcode': r'password[:\s]*([A-Za-z0-9@#$%^&*()_+-=]+)',
+            'asn': r'AS\s*Cliente[:\s]*(\d+)',
+            'mac': r'([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})',
+            'cpe': r'(OLT-[A-Z0-9-]+)',
+            'model_onu': r'ONU[:\s]*([A-Za-z0-9-]+)'
         }
         
         for text in sample_texts:
             if pd.notna(text) and isinstance(text, str):
                 for field_name, pattern in field_patterns.items():
-                    if re.search(pattern, text, re.IGNORECASE):
-                        field_analysis[field_name] = field_analysis.get(field_name, 0) + 1
+                    try:
+                        if re.search(pattern, text, re.IGNORECASE):
+                            field_analysis[field_name] = field_analysis.get(field_name, 0) + 1
+                    except:
+                        continue
         
-        # Generate recommendations
-        total_chars = text_stats['total_mb'] * 1024 * 1024
-        noise_chars = sum(noise_analysis.values()) * text_stats['avg_length']
-        reduction_percent = min(50, (noise_chars / total_chars * 100)) if total_chars > 0 else 10
+        # Analyze existing column completeness
+        existing_completeness = {}
+        for col in ['ip_management', 'gateway', 'ip_block', 'vlan', 'serial_code', 'wifi_ssid', 'wifi_passcode', 'asn', 'mac', 'cpe', 'model_onu']:
+            if col in df.columns:
+                filled_count = df[col].notna().sum()
+                total_count = len(df)
+                existing_completeness[col] = {
+                    'filled': filled_count,
+                    'total': total_count,
+                    'percentage': round((filled_count / total_count) * 100, 1) if total_count > 0 else 0
+                }
         
-        recommendations = {
-            'cleaning_impact': {
-                'reduction_percent': round(reduction_percent, 1),
-                'estimated_mb_saved': round(text_stats['total_mb'] * reduction_percent / 100, 2)
-            },
-            'extraction_potential': {
-                'total_fields_found': sum(field_analysis.values()),
-                'fields_per_record': round(sum(field_analysis.values()) / len(df), 2) if len(df) > 0 else 0,
-                'most_common_fields': sorted(field_analysis.items(), key=lambda x: x[1], reverse=True)[:5]
-            },
-            'processing_suggestions': {
-                'recommended_chunk_size': min(5000, max(1000, len(df) // 10)) if len(df) > 1000 else len(df),
-                'estimated_processing_time_minutes': max(1, int((total_rows / 1000) * 0.5)),
-                'memory_usage_warning': total_rows > 50000
-            }
-        }
-        
-        analysis = {
+        return {
             'sample_info': {
-                'requested_size': sample_size,
                 'actual_size': len(df),
                 'total_file_rows': total_rows,
-                'column_name': obs_column,
+                'column_name': 'obs',
                 'has_product_groups': has_product_groups,
                 'product_groups_info': product_groups_info
             },
             'text_stats': text_stats,
-            'noise_analysis': noise_analysis,
             'field_analysis': field_analysis,
-            'recommendations': recommendations
+            'existing_completeness': existing_completeness,
+            'extraction_potential': {
+                'total_fields_found': sum(field_analysis.values()),
+                'estimated_processing_time': max(1, int((total_rows / 1000) * 0.5)),
+                'improvement_potential': sum(1 for comp in existing_completeness.values() if comp['percentage'] < 80)
+            }
         }
         
-        print(f"✅ Análise baseada em grupos concluída com sucesso")
-        return analysis
-        
     except Exception as e:
-        error_msg = f"Análise da amostra falhou: {str(e)}"
-        print(f"❌ {error_msg}")
-        import traceback
-        print(traceback.format_exc())
-        return {'error': error_msg}
-
-# ===============================
-# HELPER FUNCTIONS
-# ===============================
-
-def load_original_dataframe(file_path, obs_column):
-    """Load original dataframe for comparison"""
-    try:
-        # Check if file exists
-        if not os.path.exists(file_path):
-            print(f"⚠️ Arquivo original não encontrado: {file_path}")
-            return pd.DataFrame()
-        
-        # Try multiple encodings
-        encodings = ['utf-8', 'utf-8-sig', 'latin-1', 'cp1252', 'iso-8859-1']
-        
-        for encoding in encodings:
-            try:
-                df = pd.read_csv(file_path, encoding=encoding, low_memory=False)
-                print(f"✅ CSV original carregado com codificação {encoding}")
-                return df
-            except (UnicodeDecodeError, UnicodeError):
-                continue
-            except Exception as e:
-                print(f"⚠️ Erro com {encoding}: {e}")
-                continue
-        
-        # If all encodings fail, try with python engine
-        try:
-            df = pd.read_csv(file_path, encoding='utf-8', engine='python', low_memory=False)
-            print("✅ CSV original carregado com engine python")
-            return df
-        except Exception as e:
-            print(f"⚠️ Engine python falhou: {e}")
-        
-        # Final fallback - return empty dataframe
-        print("❌ Todos os métodos falharam, retornando dataframe vazio")
-        return pd.DataFrame()
-        
-    except Exception as e:
-        print(f"❌ Erro ao carregar dataframe original: {str(e)}")
-        return pd.DataFrame()
-
-def analyze_product_group_completeness(df):
-    """Analyze product group completeness in processed DataFrame"""
-    try:
-        if 'product_group' not in df.columns:
-            return {'error': 'Nenhuma coluna de grupo de produto encontrada nos dados processados'}
-        
-        analysis = {}
-        
-        # Get unique product groups
-        unique_groups = df['product_group'].dropna().unique()
-        
-        for group in unique_groups:
-            group_data = df[df['product_group'] == group]
-            group_info = product_group_manager.get_group_info(group)
-            
-            if not group_info:
-                continue
-            
-            # Get mandatory fields for this group
-            mandatory_fields = product_group_manager.get_mandatory_fields(group)
-            field_mapping = product_group_manager.get_extracted_field_mapping(group)
-            
-            # Calculate completeness for each mandatory field
-            field_completeness = {}
-            total_completeness = 0
-            
-            for business_field in mandatory_fields:
-                # Map to extracted field name
-                if business_field in field_mapping:
-                    extracted_field = field_mapping[business_field].replace('extracted_', '')
-                    column_name = f'extracted_{extracted_field}'
-                else:
-                    column_name = f'extracted_{business_field}'
-                
-                if column_name in group_data.columns:
-                    filled_count = group_data[column_name].notna().sum()
-                    total_count = len(group_data)
-                    completeness_rate = (filled_count / total_count * 100) if total_count > 0 else 0
-                    
-                    field_completeness[business_field] = {
-                        'completeness_rate': round(completeness_rate, 2),
-                        'filled_count': int(filled_count),
-                        'total_count': int(total_count),
-                        'column_name': column_name,
-                        'status': get_completeness_status(completeness_rate)
-                    }
-                    
-                    total_completeness += completeness_rate
-                else:
-                    field_completeness[business_field] = {
-                        'completeness_rate': 0.0,
-                        'filled_count': 0,
-                        'total_count': len(group_data),
-                        'column_name': column_name,
-                        'status': 'missing'
-                    }
-            
-            # Calculate overall completeness
-            overall_completeness = (total_completeness / len(mandatory_fields)) if mandatory_fields else 0
-            
-            analysis[group] = {
-                'group_name': group_info['name'],
-                'total_records': len(group_data),
-                'mandatory_fields': mandatory_fields,
-                'field_completeness': field_completeness,
-                'overall_completeness': round(overall_completeness, 2),
-                'overall_status': get_completeness_status(overall_completeness),
-                'recommendations': generate_recommendations(field_completeness, overall_completeness)
-            }
-        
-        return analysis
-        
-    except Exception as e:
-        print(f"❌ Erro ao analisar completude dos grupos de produto: {str(e)}")
-        return {'error': str(e)}
-
-def analyze_mandatory_field_potential(df_sample, obs_column, text_samples, product_groups_info):
-    """Analyze potential for extracting mandatory fields by product group"""
-    try:
-        group_analysis = {}
-        
-        for group_key, group_info in product_groups_info.items():
-            mandatory_fields = group_info['mandatory_fields']
-            field_mapping = product_group_manager.get_extracted_field_mapping(group_key)
-            
-            # Get sample texts for this product group
-            group_data = df_sample[df_sample['product_group'] == group_key] if 'product_group' in df_sample.columns else df_sample
-            group_texts = group_data[obs_column].astype(str).head(min(100, len(group_data)))
-            
-            field_potential = {}
-            
-            for business_field in mandatory_fields:
-                # Map to extraction patterns
-                extracted_field = field_mapping.get(business_field, business_field)
-                if extracted_field.startswith('extracted_'):
-                    extracted_field = extracted_field.replace('extracted_', '')
-                
-                # Count potential matches in sample texts
-                match_count = 0
-                total_texts = len(group_texts)
-                
-                # Use simple heuristics to estimate extraction potential
-                pattern = get_field_pattern(business_field)
-                
-                # Count matches
-                try:
-                    for text in group_texts:
-                        if re.search(pattern, str(text), re.IGNORECASE):
-                            match_count += 1
-                except:
-                    pass
-                
-                extraction_potential = (match_count / total_texts * 100) if total_texts > 0 else 0
-                
-                field_potential[business_field] = {
-                    'extraction_potential': round(extraction_potential, 2),
-                    'sample_matches': match_count,
-                    'sample_total': total_texts,
-                    'is_mandatory': True,
-                    'mapped_field': extracted_field
-                }
-            
-            # Calculate overall potential for this group
-            avg_potential = sum([fp['extraction_potential'] for fp in field_potential.values()]) / len(field_potential) if field_potential else 0
-            
-            group_analysis[group_key] = {
-                'group_name': group_info['name'],
-                'record_count': group_info['record_count'],
-                'mandatory_field_potential': field_potential,
-                'overall_extraction_potential': round(avg_potential, 2),
-                'completeness_forecast': get_completeness_forecast(avg_potential)
-            }
-        
-        return group_analysis
-        
-    except Exception as e:
-        print(f"❌ Erro ao analisar potencial de campos obrigatórios: {str(e)}")
-        return {}
-
-def get_field_pattern(business_field):
-    """Get regex pattern for business field"""
-    field_patterns = {
-        'ip_management': r'\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b',
-        'ip_cpe': r'\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b',
-        'vlan': r'VLAN\s*:?\s*\d+',
-        'serial_code': r'SN[:\s]*[A-Za-z0-9]+',
-        'serial_number': r'SN[:\s]*[A-Za-z0-9]+',
-        'asn': r'AS\s*Cliente[:\s]*\d+',
-        'provider_id': r'AS\s*Cliente[:\s]*\d+',
-        'wifi_ssid': r'SSID[:\s]*[A-Za-z0-9_-]+',
-        'wifi_passcode': r'password[:\s]*[A-Za-z0-9@#$%^&*()_+-=]+',
-        'wifi_password': r'password[:\s]*[A-Za-z0-9@#$%^&*()_+-=]+',
-        'technology_id': r'(GPON|EPON|ETHERNET|MPLS|P2P)',
-        'client_type': r'(RESIDENCIAL|EMPRESARIAL|CORPORATIVO)',
-        'cpe': r'OLT-[A-Z0-9-]+',
-        'model_onu': r'ONU[:\s]*[A-Za-z0-9-]+',
-        'gateway': r'GTW[:\s]*[0-9\.]+',
-        'interface_1': r'interface\s+[A-Za-z0-9/]+',
-        'pop_description': r'br\.[a-z]{2}\.[a-z]{2,}\.[a-z]{2,}\.pe\.\d+',
-        'login_pppoe': r'login\s*pppoe[:\s]*[A-Za-z0-9@._-]+',
-        'ip_block': r'BLOCO\s*IP[:\s]*[0-9\.]+/\d+',
-        'prefixes': r'prefixo[:\s]*[0-9\.]+/\d+'
-    }
-    
-    return field_patterns.get(business_field, rf'{business_field.replace("_", ".*?")}[:\s]*[A-Za-z0-9_-]+')
-
-def get_completeness_status(completeness_rate):
-    """Get status based on completeness rate"""
-    if completeness_rate >= 95:
-        return 'excellent'
-    elif completeness_rate >= 80:
-        return 'good'
-    elif completeness_rate >= 60:
-        return 'fair'
-    elif completeness_rate >= 30:
-        return 'poor'
-    else:
-        return 'critical'
-
-def get_completeness_forecast(avg_potential):
-    """Get forecast based on extraction potential"""
-    if avg_potential >= 80:
-        return 'excellent'
-    elif avg_potential >= 60:
-        return 'good'
-    elif avg_potential >= 40:
-        return 'fair'
-    elif avg_potential >= 20:
-        return 'poor'
-    else:
-        return 'critical'
-
-def generate_recommendations(field_completeness, overall_completeness):
-    """Generate recommendations based on completeness analysis"""
-    recommendations = []
-    
-    # Overall recommendations
-    if overall_completeness < 50:
-        recommendations.append({
-            'type': 'critical',
-            'message': f'Completude geral muito baixa ({overall_completeness:.1f}%). Considere revisar a qualidade dos dados e padrões de extração.'
-        })
-    elif overall_completeness < 80:
-        recommendations.append({
-            'type': 'improvement',
-            'message': f'Completude geral moderada ({overall_completeness:.1f}%). Foque em melhorar campos críticos.'
-        })
-    
-    # Field-specific recommendations
-    critical_fields = [field for field, stats in field_completeness.items() 
-                      if stats['completeness_rate'] < 30]
-    
-    if critical_fields:
-        recommendations.append({
-            'type': 'critical',
-            'message': f'Campos críticos com completude muito baixa: {", ".join(critical_fields)}'
-        })
-    
-    # Missing fields
-    missing_fields = [field for field, stats in field_completeness.items() 
-                     if stats['status'] == 'missing']
-    
-    if missing_fields:
-        recommendations.append({
-            'type': 'missing',
-            'message': f'Campos não encontrados nos dados: {", ".join(missing_fields)}. Verifique os padrões de extração.'
-        })
-    
-    # Success cases
-    excellent_fields = [field for field, stats in field_completeness.items() 
-                       if stats['completeness_rate'] >= 95]
-    
-    if excellent_fields:
-        recommendations.append({
-            'type': 'success',
-            'message': f'Excelente completude em: {", ".join(excellent_fields)}'
-        })
-    
-    return recommendations
-
-def generate_product_group_recommendations(product_groups_info):
-    """Generate recommendations based on product group analysis"""
-    recommendations = {}
-    
-    for group_key, group_info in product_groups_info.items():
-        group_recs = []
-        
-        # Record count recommendations
-        if group_info['record_count'] < 10:
-            group_recs.append({
-                'type': 'warning',
-                'message': f"Amostra pequena ({group_info['record_count']} registros). Resultados podem não ser representativos."
-            })
-        elif group_info['record_count'] > 1000:
-            group_recs.append({
-                'type': 'info',
-                'message': f"Dataset grande ({group_info['record_count']} registros). Considere processamento em lotes."
-            })
-        
-        # Mandatory field recommendations
-        field_count = group_info['mandatory_field_count']
-        if field_count > 8:
-            group_recs.append({
-                'type': 'info',
-                'message': f"Grupo complexo com {field_count} campos obrigatórios. Foque primeiro nos campos críticos."
-            })
-        elif field_count < 3:
-            group_recs.append({
-                'type': 'success',
-                'message': f"Grupo simples com {field_count} campos obrigatórios. Alta completude esperada."
-            })
-        
-        recommendations[group_key] = {
-            'group_name': group_info['name'],
-            'recommendations': group_recs
-        }
-    
-    return recommendations
-
-def simulate_text_cleaning(text):
-    """Quick simulation of text cleaning"""
-    if not text:
-        return text
-    
-    cleaned = text
-    cleaned = re.sub(r'^[-=_~*+#]{5,}.*', '', cleaned, flags=re.MULTILINE)
-    cleaned = re.sub(r'^#+\s*', '', cleaned, flags=re.MULTILINE)
-    cleaned = re.sub(r'\n{3,}', '\n\n', cleaned)
-    cleaned = re.sub(r'[ \t]{3,}', ' ', cleaned)
-    cleaned = re.sub(r'^\s+', '', cleaned, flags=re.MULTILINE)
-    
-    return cleaned.strip()
-
-def create_enhanced_visual_metrics(analysis_data):
-    """Create complete visual metrics structure"""
-    total_rows = analysis_data.get('sample_info', {}).get('total_file_rows', 0)
-    
-    return {
-        'charts': {},
-        'business_impact': {
-            'time_savings': {
-                'hours_per_process': 10,
-                'annual_hours_saved': 120
-            },
-            'cost_savings': {
-                'annually': 25000,
-                'per_process': 500
-            },
-            'quality_improvements': {
-                'accuracy_increase': "25%",
-                'fields_extracted': f"{total_rows * 5:,}",
-                'data_reduction': "15%"
-            },
-            'operational_benefits': {
-                'processing_speed': "20x faster",
-                'consistency': "100% consistent results",
-                'scalability': "Handles any dataset size"
-            }
-        },
-        'roi_analysis': {
-            'investment': {
-                'total_first_year': 3500
-            },
-            'returns': {
-                'annual_savings': 25000,
-                'roi_percentage': 600,
-                'payback_months': 2,
-                'net_benefit_year1': 21500
-            },
-            'break_even_analysis': {
-                'monthly_savings': 2083,
-                'break_even_month': 2
-            }
-        },
-        'efficiency_gains': {
-            'processing_speed': "20x faster than manual",
-            'accuracy_improvement': "25% higher accuracy",
-            'consistency': "100% consistent results",
-            'scalability': f"Can process {total_rows:,} rows",
-            'error_reduction': "90% reduction in errors",
-            'availability': "24/7 processing capability"
-        }
-    }
-
-def create_enhanced_executive_summary(analysis_data):
-    """Create basic executive summary"""
-    total_rows = analysis_data.get('sample_info', {}).get('total_file_rows', 0)
-    
-    return {
-        'key_metrics': {
-            'total_rows_analyzed': f"{total_rows:,}",
-            'data_reduction': "15%",
-            'time_savings': "10 hours", 
-            'cost_savings': "$25,000/year"
-        },
-        'headline_benefits': [
-            f"Process {total_rows:,} rows automatically",
-            "Reduce manual work by 90%",
-            "Save $25,000 annually",
-            "Extract structured data fields"
-        ],
-        'competitive_advantage': [
-            "Faster time-to-insight",
-            "Higher data quality", 
-            "Scalable solution",
-            "Reduced manual work"
-        ]
-    }
-
+        return {'error': f"Análise falhou: {str(e)}"}

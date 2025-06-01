@@ -1,0 +1,329 @@
+{% extends "base.html" %}
+
+{% block title %}Análise de Extração - Bibliotecario{% endblock %}
+
+{% block extra_css %}
+<style>
+.extraction-summary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 15px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+}
+
+.metric-highlight {
+    background: rgba(255,255,255,0.1);
+    border-radius: 10px;
+    padding: 1rem;
+    text-align: center;
+    backdrop-filter: blur(10px);
+}
+
+.chart-container {
+    background: white;
+    border-radius: 15px;
+    padding: 1.5rem;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    margin-bottom: 2rem;
+}
+
+.chart-container img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 10px;
+}
+
+@media print {
+    .btn, .navbar { display: none !important; }
+    .chart-container { page-break-inside: avoid; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="text-center mb-4">
+        <h1 class="display-5 text-primary mb-3">
+            <i class="fas fa-search-plus me-3"></i>
+            Análise de Extração por Grupo de Produto
+        </h1>
+        <p class="lead text-muted">
+            Resultados da extração de configurações de rede por grupo
+        </p>
+    </div>
+
+    {% if report.error %}
+    <!-- Error Display -->
+    <div class="alert alert-danger">
+        <h5><i class="fas fa-exclamation-triangle me-2"></i>Erro na Análise</h5>
+        <p>{{ report.error }}</p>
+        <p class="mb-0">{{ report.suggestion|default('') }}</p>
+        <hr>
+        <a href="{{ url_for('main.results', session_id=session_id) }}" class="btn btn-outline-danger">
+            <i class="fas fa-arrow-left me-2"></i>Voltar aos Resultados
+        </a>
+    </div>
+    {% else %}
+
+    <!-- Summary Stats -->
+    {% if report.summary_stats %}
+    <div class="extraction-summary">
+        <h3 class="text-center mb-4">
+            <i class="fas fa-chart-bar me-2"></i>
+            Resumo da Extração
+        </h3>
+        <div class="row">
+            <div class="col-md-3 mb-3">
+                <div class="metric-highlight">
+                    <h3 class="mb-1">{{ report.summary_stats.total_groups|default(0) }}</h3>
+                    <small>Grupos de Produto</small>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="metric-highlight">
+                    <h3 class="mb-1">{{ "{:,}".format(report.summary_stats.total_records|default(0)) }}</h3>
+                    <small>Registros Processados</small>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="metric-highlight">
+                    <h3 class="mb-1">{{ report.summary_stats.average_success_rate|default(0) }}%</h3>
+                    <small>Taxa Média de Sucesso</small>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="metric-highlight">
+                    <h3 class="mb-1">{{ "{:,}".format(report.summary_stats.total_extractions|default(0)) }}</h3>
+                    <small>Campos Extraídos</small>
+                </div>
+            </div>
+        </div>
+        
+        {% if report.summary_stats.best_group %}
+        <div class="text-center mt-3">
+            <p class="mb-0">
+                <i class="fas fa-trophy me-2"></i>
+                <strong>Melhor Performance:</strong> {{ report.summary_stats.best_group }}
+            </p>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Extraction Charts -->
+    {% if report.visualizations %}
+    
+    <!-- Extraction Success by Group -->
+    {% if report.visualizations.extraction_by_group %}
+    <div class="chart-container">
+        <h3 class="text-center mb-4">
+            <i class="fas fa-chart-bar me-2"></i>
+            Taxa de Sucesso da Extração por Grupo
+        </h3>
+        <div class="text-center">
+            <img src="{{ report.visualizations.extraction_by_group }}" 
+                 alt="Taxa de Sucesso da Extração por Grupo" 
+                 class="img-fluid">
+        </div>
+        <div class="mt-3 text-center">
+            <p class="text-muted">
+                <i class="fas fa-info-circle me-1"></i>
+                Mostra a porcentagem de campos obrigatórios extraídos com sucesso para cada grupo de produto
+            </p>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Mandatory Field Coverage -->
+    {% if report.visualizations.mandatory_coverage %}
+    <div class="chart-container">
+        <h3 class="text-center mb-4">
+            <i class="fas fa-list-check me-2"></i>
+            Sucesso de Extração por Campo Obrigatório
+        </h3>
+        <div class="text-center">
+            <img src="{{ report.visualizations.mandatory_coverage }}" 
+                 alt="Sucesso por Campo Obrigatório" 
+                 class="img-fluid">
+        </div>
+        <div class="mt-3 text-center">
+            <p class="text-muted">
+                <i class="fas fa-info-circle me-1"></i>
+                Taxa média de sucesso na extração de cada tipo de configuração de rede
+            </p>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Field Distribution -->
+    {% if report.visualizations.field_distribution %}
+    <div class="chart-container">
+        <h3 class="text-center mb-4">
+            <i class="fas fa-chart-pie me-2"></i>
+            Distribuição e Qualidade da Extração
+        </h3>
+        <div class="text-center">
+            <img src="{{ report.visualizations.field_distribution }}" 
+                 alt="Distribuição da Extração" 
+                 class="img-fluid">
+        </div>
+        <div class="mt-3 text-center">
+            <p class="text-muted">
+                <i class="fas fa-info-circle me-1"></i>
+                Distribuição de registros por grupo e categorização por qualidade de extração
+            </p>
+        </div>
+    </div>
+    {% endif %}
+
+    {% else %}
+    <!-- No Visualizations -->
+    <div class="alert alert-warning text-center">
+        <i class="fas fa-chart-bar fa-3x mb-3"></i>
+        <h4>Visualizações Não Disponíveis</h4>
+        <p>Não foi possível gerar os gráficos de extração. Verifique se o processamento foi concluído com sucesso.</p>
+    </div>
+    {% endif %}
+
+    <!-- Detailed Results Table -->
+    {% if report.extraction_data %}
+    <div class="card mb-4">
+        <div class="card-header bg-dark text-white">
+            <h5 class="mb-0">
+                <i class="fas fa-table me-2"></i>
+                Resultados Detalhados por Grupo
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Grupo de Produto</th>
+                            <th>Categoria</th>
+                            <th>Registros</th>
+                            <th>Campos Obrigatórios</th>
+                            <th>Taxa de Sucesso</th>
+                            <th>Total Extraído</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for group_key, data in report.extraction_data.items() %}
+                        <tr>
+                            <td>
+                                <strong>{{ data.name[:40] }}</strong>
+                                <br><small class="text-muted">{{ data.priority|title }} Priority</small>
+                            </td>
+                            <td>
+                                <span class="badge bg-secondary">{{ data.category|title }}</span>
+                            </td>
+                            <td>{{ "{:,}".format(data.total_records) }}</td>
+                            <td>{{ data.mandatory_fields|length }}</td>
+                            <td>
+                                <div class="progress" style="height: 20px;">
+                                    <div class="progress-bar 
+                                        {% if data.overall_success_rate >= 80 %}bg-success
+                                        {% elif data.overall_success_rate >= 60 %}bg-warning
+                                        {% else %}bg-danger
+                                        {% endif %}" 
+                                         style="width: {{ data.overall_success_rate }}%">
+                                        {{ data.overall_success_rate }}%
+                                    </div>
+                                </div>
+                            </td>
+                            <td>{{ "{:,}".format(data.total_extractions) }}</td>
+                            <td>
+                                {% if data.overall_success_rate >= 80 %}
+                                <span class="badge bg-success">Excelente</span>
+                                {% elif data.overall_success_rate >= 60 %}
+                                <span class="badge bg-warning">Bom</span>
+                                {% else %}
+                                <span class="badge bg-danger">Precisa Melhorar</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% endif %}
+
+    <!-- Action Buttons -->
+    <div class="text-center mb-5">
+        <div class="d-flex justify-content-center gap-3 flex-wrap">
+            <a href="{{ url_for('main.results', session_id=session_id) }}" class="btn btn-primary btn-lg">
+                <i class="fas fa-arrow-left me-2"></i>
+                Voltar aos Resultados
+            </a>
+            <button class="btn btn-success btn-lg" onclick="window.print()">
+                <i class="fas fa-print me-2"></i>
+                Imprimir Análise
+            </a>
+            <a href="{{ url_for('main.upload') }}" class="btn btn-outline-secondary btn-lg">
+                <i class="fas fa-upload me-2"></i>
+                Processar Novo Arquivo
+            </a>
+        </div>
+    </div>
+
+    <!-- Summary Note -->
+    <div class="alert alert-info">
+        <h6 class="alert-heading">
+            <i class="fas fa-info-circle me-2"></i>
+            Sobre Esta Análise
+        </h6>
+        <p class="mb-0">
+            Esta análise mostra os resultados reais da extração de configurações de rede dos seus dados. 
+            Os gráficos apresentam as taxas de sucesso na extração de campos obrigatórios específicos 
+            para cada grupo de produto, ajudando a identificar onde o processamento foi mais eficaz.
+        </p>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+$(document).ready(function() {
+    // Add entrance animations
+    $('.chart-container').each(function(index) {
+        $(this).css({
+            'opacity': '0',
+            'transform': 'translateY(30px)'
+        });
+        
+        setTimeout(() => {
+            $(this).animate({
+                'opacity': '1'
+            }, 800).css('transform', 'translateY(0)');
+        }, index * 300);
+    });
+    
+    // Add hover effects
+    $('.chart-container').hover(
+        function() {
+            $(this).addClass('shadow-lg');
+        },
+        function() {
+            $(this).removeClass('shadow-lg');
+        }
+    );
+});
+
+// Print optimization
+window.addEventListener('beforeprint', function() {
+    $('.btn').hide();
+});
+
+window.addEventListener('afterprint', function() {
+    $('.btn').show();
+});
+</script>
+{% endblock %}
