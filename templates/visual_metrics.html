@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 
-{% block title %}Business Impact Analysis - Bibliotecario{% endblock %}
+{% block title %}Extraction Analysis - Bibliotecario{% endblock %}
 
 {% block extra_css %}
 <style>
-.executive-summary {
+.extraction-summary {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
     border-radius: 15px;
@@ -28,7 +28,13 @@
     margin-bottom: 2rem;
 }
 
-.business-metric {
+.chart-container img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 10px;
+}
+
+.extraction-metric {
     text-align: center;
     padding: 1.5rem;
     background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
@@ -37,11 +43,11 @@
     transition: transform 0.3s ease;
 }
 
-.business-metric:hover {
+.extraction-metric:hover {
     transform: translateY(-5px);
 }
 
-.roi-highlight {
+.success-highlight {
     background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
     color: white;
     border-radius: 15px;
@@ -49,7 +55,7 @@
     text-align: center;
 }
 
-.competitive-advantage {
+.field-performance {
     background: linear-gradient(135deg, #6f42c1 0%, #e83e8c 100%);
     color: white;
     border-radius: 15px;
@@ -66,101 +72,136 @@
 {% block content %}
 <div class="row">
     <div class="col-12">
-        <!-- Executive Summary Header -->
-        <div class="executive-summary">
+        <!-- Extraction Summary Header -->
+        <div class="extraction-summary">
             <div class="text-center mb-4">
                 <h1 class="display-4 mb-3">
-                    <i class="fas fa-chart-line me-3"></i>
-                    Business Impact Analysis
+                    <i class="fas fa-search-plus me-3"></i>
+                    Análise de Extração por Grupo
                 </h1>
                 <p class="lead">
-                    Benefícios Quantificados da Solução de Processamento de Texto Bibliotecario
+                    Resultados da Extração de Configurações de Rede por Grupo de Produto
                 </p>
                 <small class="opacity-75">
-                    Analysis based on {{ "{:,}".format(total_rows) }} row dataset with {{ "{:,}".format(analysis_data.sample_info.actual_size) }} sample analysis
+                    Análise baseada em {{ summary_stats.total_records|default(0) }} registros processados em {{ summary_stats.total_groups|default(0) }} grupos de produto
                 </small>
             </div>
             
             <!-- Key Metrics -->
             <div class="row">
-                {% for metric, value in executive_summary.key_metrics.items() %}
                 <div class="col-md-3 mb-3">
                     <div class="metric-highlight">
-                        <h3 class="mb-1">{{ value }}</h3>
-                        <small>{{ metric.replace('_', ' ').title() }}</small>
+                        <h3 class="mb-1">{{ summary_stats.total_groups|default(0) }}</h3>
+                        <small>Grupos de Produto</small>
                     </div>
                 </div>
-                {% endfor %}
-            </div>
-            
-            <!-- Headline Benefits -->
-            <div class="mt-4">
-                <h5 class="mb-3">
-                    <i class="fas fa-star me-2"></i>Key Benefits
-                </h5>
-                <div class="row">
-                    {% for benefit in executive_summary.headline_benefits %}
-                    <div class="col-md-6 mb-2">
-                        <i class="fas fa-check-circle me-2"></i>{{ benefit }}
+                <div class="col-md-3 mb-3">
+                    <div class="metric-highlight">
+                        <h3 class="mb-1">{{ "{:,}".format(summary_stats.total_records|default(0)) }}</h3>
+                        <small>Registros Processados</small>
                     </div>
-                    {% endfor %}
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="metric-highlight">
+                        <h3 class="mb-1">{{ summary_stats.average_success_rate|default(0) }}%</h3>
+                        <small>Taxa Média de Sucesso</small>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="metric-highlight">
+                        <h3 class="mb-1">{{ "{:,}".format(summary_stats.total_extractions|default(0)) }}</h3>
+                        <small>Campos Extraídos</small>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <!-- Key Benefits -->
-        <div class="card mb-4">
-            <div class="card-header bg-success text-white">
-                <h4 class="mb-0">
-                    <i class="fas fa-star me-2"></i>
-                    Key Business Benefits
-                </h4>
+        <!-- Extraction Success by Group Chart -->
+        {% if visualizations.extraction_by_group %}
+        <div class="chart-container">
+            <h3 class="text-center mb-4">
+                <i class="fas fa-chart-bar me-2"></i>
+                Taxa de Sucesso da Extração por Grupo de Produto
+            </h3>
+            <div class="text-center">
+                <img src="{{ visualizations.extraction_by_group }}" 
+                     alt="Taxa de Sucesso da Extração por Grupo" 
+                     class="img-fluid">
             </div>
-            <div class="card-body">
-                <div class="row">
-                    {% for benefit in executive_summary.headline_benefits %}
-                    <div class="col-md-6 mb-3">
-                        <div class="d-flex align-items-center">
-                            <i class="fas fa-check-circle fa-2x me-3 text-success"></i>
-                            <h5 class="mb-0">{{ benefit }}</h5>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
+            <div class="mt-3 text-muted text-center">
+                <small>
+                    <i class="fas fa-info-circle me-1"></i>
+                    Mostra a porcentagem de campos obrigatórios extraídos com sucesso para cada grupo de produto
+                </small>
             </div>
         </div>
+        {% endif %}
 
-        <!-- Analysis Results -->
+        <!-- Mandatory Field Coverage Chart -->
+        {% if visualizations.mandatory_coverage %}
+        <div class="chart-container">
+            <h3 class="text-center mb-4">
+                <i class="fas fa-list-check me-2"></i>
+                Sucesso de Extração por Campo Obrigatório
+            </h3>
+            <div class="text-center">
+                <img src="{{ visualizations.mandatory_coverage }}" 
+                     alt="Sucesso por Campo Obrigatório" 
+                     class="img-fluid">
+            </div>
+            <div class="mt-3 text-muted text-center">
+                <small>
+                    <i class="fas fa-info-circle me-1"></i>
+                    Taxa média de sucesso na extração de cada tipo de configuração de rede
+                </small>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Field Distribution Chart -->
+        {% if visualizations.field_distribution %}
+        <div class="chart-container">
+            <h3 class="text-center mb-4">
+                <i class="fas fa-chart-pie me-2"></i>
+                Distribuição e Qualidade da Extração
+            </h3>
+            <div class="text-center">
+                <img src="{{ visualizations.field_distribution }}" 
+                     alt="Distribuição da Extração" 
+                     class="img-fluid">
+            </div>
+            <div class="mt-3 text-muted text-center">
+                <small>
+                    <i class="fas fa-info-circle me-1"></i>
+                    Distribuição de registros por grupo e categorização por qualidade de extração
+                </small>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Performance Summary -->
         <div class="row mb-4">
             <div class="col-lg-6">
                 <div class="card">
-                    <div class="card-header bg-primary text-white">
+                    <div class="card-header bg-success text-white">
                         <h5 class="mb-0">
-                            <i class="fas fa-database me-2"></i>
-                            Data Processing Impact
+                            <i class="fas fa-trophy me-2"></i>
+                            Melhor Performance
                         </h5>
                     </div>
                     <div class="card-body">
-                        <div class="row text-center">
-                            <div class="col-6">
-                                <h3 class="text-primary">{{ "{:,}".format(total_rows) }}</h3>
-                                <small>Total de Linhas</small>
+                        <div class="text-center">
+                            <h4 class="text-success">{{ summary_stats.best_group|default("N/A") }}</h4>
+                            <p class="text-muted">Grupo com melhor taxa de extração</p>
+                            {% if summary_stats.extraction_efficiency %}
+                            <div class="progress mb-3">
+                                <div class="progress-bar bg-success" 
+                                     style="width: {{ summary_stats.extraction_efficiency }}%">
+                                    {{ summary_stats.extraction_efficiency }}%
+                                </div>
                             </div>
-                            <div class="col-6">
-                                <h3 class="text-success">{{ metrics.business_impact.quality_improvements.data_reduction }}</h3>
-                                <small>Redução de Dados</small>
-                            </div>
-                        </div>
-                        <hr>
-                        <div class="row text-center">
-                            <div class="col-6">
-                                <h4 class="text-info">{{ analysis_data.recommendations.extraction_potential.total_fields_found }}</h4>
-                                <small>Campos Extraídos</small>
-                            </div>
-                            <div class="col-6">
-                                <h4 class="text-warning">{{ analysis_data.recommendations.extraction_potential.fields_per_record }}</h4>
-                                <small>Campos por Registro</small>
-                            </div>
+                            <small class="text-muted">Eficiência de extração geral</small>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
@@ -168,186 +209,156 @@
 
             <div class="col-lg-6">
                 <div class="card">
-                    <div class="card-header bg-warning text-white">
+                    <div class="card-header bg-info text-white">
                         <h5 class="mb-0">
-                            <i class="fas fa-dollar-sign me-2"></i>
-                            Financial Impact
+                            <i class="fas fa-chart-line me-2"></i>
+                            Estatísticas de Extração
                         </h5>
                     </div>
                     <div class="card-body">
                         <div class="row text-center">
                             <div class="col-6">
-                                <h3 class="text-success">${{ "{:,}".format(metrics.roi_analysis.returns.annual_savings) }}</h3>
-                                <small>Economia Anual</small>
+                                <h4 class="text-info">{{ summary_stats.total_extractions|default(0) }}</h4>
+                                <small>Total de Extrações</small>
                             </div>
                             <div class="col-6">
-                                <h3 class="text-primary">{{ metrics.roi_analysis.returns.roi_percentage }}%</h3>
-                                <small>ROI</small>
+                                <h4 class="text-primary">{{ summary_stats.average_success_rate|default(0) }}%</h4>
+                                <small>Taxa Média de Sucesso</small>
                             </div>
                         </div>
                         <hr>
-                        <div class="row text-center">
-                            <div class="col-6">
-                                <h4 class="text-info">{{ metrics.roi_analysis.returns.payback_months }}</h4>
-                                <small>Meses para Retorno</small>
-                            </div>
-                            <div class="col-6">
-                                <h4 class="text-warning">${{ "{:,}".format(metrics.roi_analysis.returns.net_benefit_year1) }}</h4>
-                                <small>Benefício Líquido do Ano 1</small>
-                            </div>
+                        <div class="text-center">
+                            <p class="mb-0 text-muted">
+                                <strong>{{ summary_stats.total_groups|default(0) }}</strong> grupos de produto analisados
+                                com <strong>{{ "{:,}".format(summary_stats.total_records|default(0)) }}</strong> registros processados
+                            </p>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Efficiency Improvements -->
-        <div class="card mb-4">
-            <div class="card-header bg-info text-white">
-                <h5 class="mb-0">
-                    <i class="fas fa-tachometer-alt me-2"></i>
-                    Efficiency Improvements
-                </h5>
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-4 text-center mb-3">
-                        <i class="fas fa-rocket fa-3x text-primary mb-2"></i>
-                        <h5>{{ metrics.efficiency_gains.processing_speed }}</h5>
-                        <small class="text-muted">Velocidade de Processamento</small>
-                    </div>
-                    <div class="col-md-4 text-center mb-3">
-                        <i class="fas fa-bullseye fa-3x text-success mb-2"></i>
-                        <h5>{{ metrics.efficiency_gains.accuracy_improvement }}</h5>
-                        <small class="text-muted">Melhoria da Precisão</small>
-                    </div>
-                    <div class="col-md-4 text-center mb-3">
-                        <i class="fas fa-shield-alt fa-3x text-info mb-2"></i>
-                        <h5>{{ metrics.efficiency_gains.consistency }}</h5>
-                        <small class="text-muted">Consistência dos Resultados</small>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Investment Analysis -->
-        <div class="card mb-4">
-            <div class="card-header bg-secondary text-white">
-                <h5 class="mb-0">
-                    <i class="fas fa-calculator me-2"></i>
-                    Investment Analysis
-                </h5>
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-6">
-                        <h6 class="text-primary mb-3">Detalhamento do Investimento</h6>
-                        <div class="list-group">
-                            <div class="list-group-item d-flex justify-content-between">
-                                <span>Licença de Software (Anual)</span>
-                                <strong>${{ "{:,}".format(metrics.roi_analysis.investment.software_annual) }}</strong>
-                            </div>
-                            <div class="list-group-item d-flex justify-content-between">
-                                <span>Treinamento (Uma vez)</span>
-                                <strong>${{ "{:,}".format(metrics.roi_analysis.investment.training_onetime) }}</strong>
-                            </div>
-                            <div class="list-group-item d-flex justify-content-between">
-                                <span>Configuração e Integração</span>
-                                <strong>${{ "{:,}".format(metrics.roi_analysis.investment.setup_onetime) }}</strong>
-                            </div>
-                            <div class="list-group-item d-flex justify-content-between bg-light">
-                                <strong>Total do Primeiro Ano</strong>
-                                <strong>${{ "{:,}".format(metrics.roi_analysis.investment.total_first_year) }}</strong>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <h6 class="text-success mb-3">Análise de Retorno</h6>
-                        <div class="list-group">
-                            <div class="list-group-item d-flex justify-content-between">
-                                <span>Economia Anual</span>
-                                <strong class="text-success">${{ "{:,}".format(metrics.roi_analysis.returns.annual_savings) }}</strong>
-                            </div>
-                            <div class="list-group-item d-flex justify-content-between">
-                                <span>Economia Mensal</span>
-                                <strong class="text-success">${{ "{:,}".format(metrics.roi_analysis.break_even_analysis.monthly_savings) }}</strong>
-                            </div>
-                            <div class="list-group-item d-flex justify-content-between">
-                                <span>Período de Equilíbrio</span>
-                                <strong>{{ metrics.roi_analysis.break_even_analysis.break_even_month }} months</strong>
-                            </div>
-                            <div class="list-group-item d-flex justify-content-between bg-success text-white">
-                                <strong>Benefício Líquido de 3 Anos</strong>
-                                <strong>${{ "{:,}".format(metrics.roi_analysis.break_even_analysis.cumulative_benefit_3_years) }}</strong>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Competitive Advantages -->
-        <div class="competitive-advantage mb-4">
-            <h5 class="text-center mb-4">
-                <i class="fas fa-trophy me-2"></i>
-                Competitive Advantages
-            </h5>
-            <div class="row">
-                {% for advantage in executive_summary.competitive_advantage %}
-                <div class="col-md-6 mb-3">
-                    <div class="d-flex align-items-center">
-                        <i class="fas fa-arrow-up fa-2x me-3 text-warning"></i>
-                        <div>
-                            <strong>{{ advantage }}</strong>
-                        </div>
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
-        </div>
-
-        <!-- Processing Details -->
+        <!-- Detailed Extraction Results -->
+        {% if extraction_data %}
         <div class="card mb-4">
             <div class="card-header bg-dark text-white">
                 <h5 class="mb-0">
-                    <i class="fas fa-cogs me-2"></i>
-                    Processing Analysis Details
+                    <i class="fas fa-table me-2"></i>
+                    Resultados Detalhados por Grupo
                 </h5>
             </div>
             <div class="card-body">
-                <div class="row">
-                    <div class="col-md-4">
-                        <h6 class="text-primary">Sample Analysis</h6>
-                        <ul class="list-unstyled">
-                            <li><strong>Sample Size:</strong> {{ "{:,}".format(analysis_data.sample_info.actual_size) }} rows</li>
-                            <li><strong>Total File Size:</strong> {{ "{:,}".format(total_rows) }} rows</li>
-                            <li><strong>Data Size:</strong> {{ analysis_data.text_stats.total_mb }} MB</li>
-                            <li><strong>Comprimento Médio do Texto:</strong> {{ "{:,}".format(analysis_data.text_stats.avg_length) }} chars</li>
-                        </ul>
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Grupo de Produto</th>
+                                <th>Registros</th>
+                                <th>Campos Obrigatórios</th>
+                                <th>Taxa de Sucesso</th>
+                                <th>Total Extraído</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for group_key, data in extraction_data.items() %}
+                            <tr>
+                                <td>
+                                    <strong>{{ data.name[:40] }}</strong>
+                                    <br><small class="text-muted">{{ data.category|title }}</small>
+                                </td>
+                                <td>{{ "{:,}".format(data.total_records) }}</td>
+                                <td>{{ data.mandatory_fields|length }}</td>
+                                <td>
+                                    <div class="progress" style="height: 20px;">
+                                        <div class="progress-bar 
+                                            {% if data.overall_success_rate >= 80 %}bg-success
+                                            {% elif data.overall_success_rate >= 60 %}bg-warning
+                                            {% else %}bg-danger
+                                            {% endif %}" 
+                                             style="width: {{ data.overall_success_rate }}%">
+                                            {{ data.overall_success_rate }}%
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>{{ "{:,}".format(data.total_extractions) }}</td>
+                                <td>
+                                    {% if data.overall_success_rate >= 80 %}
+                                    <span class="badge bg-success">Excelente</span>
+                                    {% elif data.overall_success_rate >= 60 %}
+                                    <span class="badge bg-warning">Bom</span>
+                                    {% else %}
+                                    <span class="badge bg-danger">Precisa Melhorar</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Field Performance Details -->
+        <div class="field-performance mb-4">
+            <h5 class="text-center mb-4">
+                <i class="fas fa-network-wired me-2"></i>
+                Tipos de Configuração de Rede Extraídas
+            </h5>
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-globe fa-2x me-3 text-warning"></i>
+                        <div>
+                            <strong>Configurações de IP</strong>
+                            <br><small>IP Management, Gateway, Blocos IP</small>
+                        </div>
                     </div>
-                    <div class="col-md-4">
-                        <h6 class="text-success">Extraction Resultados</h6>
-                        <ul class="list-unstyled">
-                            <li><strong>Fields Found:</strong> {{ analysis_data.recommendations.extraction_potential.total_fields_found }}</li>
-                            <li><strong>Campos por Registro:</strong> {{ analysis_data.recommendations.extraction_potential.fields_per_record }}</li>
-                            <li><strong>Success Rate:</strong> High</li>
-                            <li><strong>Quality:</strong> Excellent</li>
-                        </ul>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-sitemap fa-2x me-3 text-warning"></i>
+                        <div>
+                            <strong>Configurações de VLAN</strong>
+                            <br><small>VLANs, ASN, Interfaces</small>
+                        </div>
                     </div>
-                    <div class="col-md-4">
-                        <h6 class="text-warning">Processando Optimization</h6>
-                        <ul class="list-unstyled">
-                            <li><strong>Recommended Chunk:</strong> {{ "{:,}".format(analysis_data.recommendations.processing_suggestions.recommended_chunk_size) }} rows</li>
-                            <li><strong>Est. Time:</strong> {{ analysis_data.recommendations.processing_suggestions.estimated_processing_time_minutes }} min</li>
-                            <li><strong>Memory Usage:</strong> 
-                                {% if analysis_data.recommendations.processing_suggestions.memory_usage_warning %}
-                                High
-                                {% else %}
-                                Normal
-                                {% endif %}
-                            </li>
-                            <li><strong>Scalability:</strong> Excellent</li>
-                        </ul>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-wifi fa-2x me-3 text-warning"></i>
+                        <div>
+                            <strong>Configurações WiFi</strong>
+                            <br><small>SSID, Senhas, Códigos de Acesso</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-microchip fa-2x me-3 text-warning"></i>
+                        <div>
+                            <strong>Hardware</strong>
+                            <br><small>Números de Série, MACs, Modelos</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-server fa-2x me-3 text-warning"></i>
+                        <div>
+                            <strong>Equipamentos</strong>
+                            <br><small>CPE, ONUs, POPs</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-user-tag fa-2x me-3 text-warning"></i>
+                        <div>
+                            <strong>Classificações</strong>
+                            <br><small>Tipo de Cliente, Tecnologia</small>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -355,38 +366,41 @@
 
         <!-- Action Buttons -->
         <div class="text-center mb-5">
-            <h4 class="mb-4">Ready to Transform Your Data Processando?</h4>
+            <h4 class="mb-4">Próximos Passos</h4>
             <div class="d-flex justify-content-center gap-3 flex-wrap">
-                <a href="{{ url_for('main.upload') }}" class="btn btn-success btn-lg">
-                    <i class="fas fa-rocket me-2"></i>
-                    Start Processing
+                <a href="{{ url_for('main.results', session_id=session_id) }}" class="btn btn-success btn-lg">
+                    <i class="fas fa-download me-2"></i>
+                    Baixar Dados Processados
                 </a>
                 <button class="btn btn-primary btn-lg" onclick="window.print()">
                     <i class="fas fa-file-pdf me-2"></i>
-                    Save Report
+                    Salvar Relatório
                 </button>
-                <button class="btn btn-outline-info btn-lg" onclick="togglePresentationMode()">
-                    <i class="fas fa-desktop me-2"></i>
-                    Presentation Mode
-                </button>
+                <a href="{{ url_for('main.upload') }}" class="btn btn-outline-info btn-lg">
+                    <i class="fas fa-upload me-2"></i>
+                    Processar Novo Arquivo
+                </a>
                 <a href="{{ url_for('main.index') }}" class="btn btn-outline-secondary btn-lg">
                     <i class="fas fa-home me-2"></i>
-                    Home
+                    Início
                 </a>
             </div>
         </div>
 
-        <!-- Footer Note -->
+        <!-- Summary Note -->
         <div class="alert alert-info">
             <h6 class="alert-heading">
                 <i class="fas fa-info-circle me-2"></i>
-                Analysis Summary
+                Resumo da Análise
             </h6>
             <p class="mb-0">
-                This business impact analysis is based on processing <strong>{{ "{:,}".format(analysis_data.sample_info.actual_size) }} sample rows</strong> 
-                from your <strong>{{ "{:,}".format(total_rows) }} row dataset</strong>. 
-                Results show significant potential for cost savings, efficiency improvements, and ROI through automated text processing 
-                and field extraction with Bibliotecario.
+                Esta análise mostra os resultados reais da extração de configurações de rede dos seus dados. 
+                <strong>{{ summary_stats.total_extractions|default(0) }} campos foram extraídos</strong> 
+                de <strong>{{ "{:,}".format(summary_stats.total_records|default(0)) }} registros</strong> 
+                distribuídos em <strong>{{ summary_stats.total_groups|default(0) }} grupos de produto</strong>.
+                A taxa média de sucesso de {{ summary_stats.average_success_rate|default(0) }}% indica 
+                {% if summary_stats.average_success_rate >= 80 %}excelente performance{% elif summary_stats.average_success_rate >= 60 %}boa performance{% else %}oportunidades de melhoria{% endif %} 
+                na extração automatizada.
             </p>
         </div>
 
@@ -412,7 +426,7 @@ $(document).ready(function() {
     });
     
     // Add hover effects
-    $('.card').hover(
+    $('.card, .chart-container').hover(
         function() {
             $(this).addClass('shadow-lg');
         },
@@ -420,21 +434,15 @@ $(document).ready(function() {
             $(this).removeClass('shadow-lg');
         }
     );
+    
+    // Animate progress bars
+    $('.progress-bar').each(function() {
+        const width = $(this).css('width');
+        $(this).css('width', '0%').animate({
+            'width': width
+        }, 1500);
+    });
 });
-
-function togglePresentationMode() {
-    // Toggle full screen presentation mode
-    if (document.fullscreenElement) {
-        document.exitFullscreen();
-        $('body').removeClass('bg-dark text-light');
-        $('.navbar').show();
-    } else {
-        document.documentElement.requestFullscreen();
-        $('body').addClass('bg-dark text-light');
-        $('.navbar').hide();
-        $('html, body').animate({scrollTop: 0}, 500);
-    }
-}
 
 // Print optimization
 window.addEventListener('beforeprint', function() {
@@ -446,23 +454,4 @@ window.addEventListener('afterprint', function() {
     $('.btn').show();
 });
 </script>
-
-<style>
-@media print {
-    .btn, .navbar { display: none !important; }
-    .card { page-break-inside: avoid; }
-    body { background: white !important; }
-}
-
-.bg-dark.text-light .card {
-    background: #2d3748 !important;
-    color: white !important;
-}
-
-.bg-dark.text-light .list-group-item {
-    background: #4a5568 !important;
-    color: white !important;
-    border-color: #666 !important;
-}
-</style>
 {% endblock %}
