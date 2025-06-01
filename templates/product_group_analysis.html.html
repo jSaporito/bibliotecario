@@ -1,0 +1,576 @@
+{% extends "base.html" %}
+
+{% block title %}Análise por Grupo de Produto - Bibliotecario{% endblock %}
+
+{% block extra_css %}
+<style>
+.group-card {
+    border-radius: 15px;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+    transition: transform 0.3s ease;
+    margin-bottom: 2rem;
+    overflow: hidden;
+}
+
+.group-card:hover {
+    transform: translateY(-5px);
+}
+
+.completeness-bar {
+    height: 25px;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #e9ecef;
+    position: relative;
+}
+
+.completeness-fill {
+    height: 100%;
+    border-radius: 12px;
+    transition: width 1s ease-in-out;
+    position: relative;
+}
+
+.completeness-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-weight: bold;
+    font-size: 0.85rem;
+    color: white;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+}
+
+.status-excellent { background: linear-gradient(90deg, #28a745, #20c997); }
+.status-good { background: linear-gradient(90deg, #17a2b8, #6f42c1); }
+.status-fair { background: linear-gradient(90deg, #ffc107, #fd7e14); }
+.status-poor { background: linear-gradient(90deg, #fd7e14, #dc3545); }
+.status-critical { background: linear-gradient(90deg, #dc3545, #6f42c1); }
+.status-missing { background: linear-gradient(90deg, #6c757d, #495057); }
+
+.field-item {
+    padding: 0.75rem;
+    margin: 0.5rem 0;
+    border-radius: 10px;
+    border-left: 5px solid;
+    background: #f8f9fa;
+    transition: all 0.3s ease;
+}
+
+.field-item:hover {
+    background: #e9ecef;
+    transform: translateX(5px);
+}
+
+.field-excellent { border-left-color: #28a745; }
+.field-good { border-left-color: #17a2b8; }
+.field-fair { border-left-color: #ffc107; }
+.field-poor { border-left-color: #fd7e14; }
+.field-critical { border-left-color: #dc3545; }
+.field-missing { border-left-color: #6c757d; }
+
+.recommendation-item {
+    padding: 1rem;
+    border-radius: 10px;
+    margin: 0.5rem 0;
+    border-left: 4px solid;
+    background: white;
+}
+
+.rec-critical { border-left-color: #dc3545; background: #f8d7da; }
+.rec-improvement { border-left-color: #ffc107; background: #fff3cd; }
+.rec-missing { border-left-color: #6c757d; background: #f8f9fa; }
+.rec-success { border-left-color: #28a745; background: #d4edda; }
+
+.metric-box {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-radius: 15px;
+    padding: 1.5rem;
+    text-align: center;
+    border: 2px solid transparent;
+    transition: all 0.3s ease;
+    height: 100%;
+}
+
+.metric-box:hover {
+    border-color: #007bff;
+    transform: translateY(-3px);
+}
+
+.summary-section {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 20px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    text-align: center;
+}
+
+@media print {
+    .btn, .modal { display: none !important; }
+    .group-card { page-break-inside: avoid; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header Section -->
+    <div class="text-center mb-4">
+        <h1 class="display-5 text-primary mb-3">
+            <i class="fas fa-layer-group me-3"></i>
+            Análise por Grupo de Produto
+        </h1>
+        <p class="lead text-muted">
+            Completude de campos obrigatórios por classificação de produto
+        </p>
+    </div>
+
+    <!-- Summary Section -->
+    {% if group_analysis and not group_analysis.get('error') %}
+    <div class="summary-section">
+        <h3 class="mb-4">
+            <i class="fas fa-chart-pie me-2"></i>
+            Resumo Geral
+        </h3>
+        <div class="row">
+            <div class="col-md-3">
+                <h4>{{ group_analysis|length }}</h4>
+                <small>Grupos de Produto Encontrados</small>
+            </div>
+            <div class="col-md-3">
+                {% set total_records = group_analysis.values()|sum(attribute='total_records') %}
+                <h4>{{ "{:,}".format(total_records) }}</h4>
+                <small>Total de Registros</small>
+            </div>
+            <div class="col-md-3">
+                {% set avg_completeness = (group_analysis.values()|sum(attribute='overall_completeness') / group_analysis|length)|round(1) if group_analysis else 0 %}
+                <h4>{{ avg_completeness }}%</h4>
+                <small>Completude Média Geral</small>
+            </div>
+            <div class="col-md-3">
+                {% set total_mandatory = group_analysis.values()|sum(attribute='mandatory_fields')|length if group_analysis.values()|first and group_analysis.values()|first.mandatory_fields else 0 %}
+                <h4>{{ total_mandatory }}</h4>
+                <small>Total de Campos Obrigatórios</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Product Groups Analysis -->
+    <div class="row">
+        {% for group_key, analysis in group_analysis.items() %}
+        <div class="col-lg-6 mb-4">
+            <div class="group-card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-box me-2"></i>
+                        {{ analysis.group_name }}
+                    </h5>
+                    <small>{{ "{:,}".format(analysis.total_records) }} registros processados</small>
+                </div>
+                
+                <div class="card-body">
+                    <!-- Overall Completeness -->
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <strong>Completude Geral:</strong>
+                            <span class="badge bg-{% if analysis.overall_status == 'excellent' %}success{% elif analysis.overall_status == 'good' %}info{% elif analysis.overall_status == 'fair' %}warning{% else %}danger{% endif %} fs-6">
+                                {{ analysis.overall_completeness }}%
+                            </span>
+                        </div>
+                        
+                        <div class="completeness-bar">
+                            <div class="completeness-fill status-{{ analysis.overall_status }}" 
+                                 style="width: {{ analysis.overall_completeness }}%">
+                                <div class="completeness-text">{{ analysis.overall_completeness }}%</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Mandatory Fields Details -->
+                    <h6 class="text-primary mb-3">
+                        <i class="fas fa-list-check me-2"></i>
+                        Campos Obrigatórios ({{ analysis.mandatory_fields|length }})
+                    </h6>
+                    
+                    <div class="mandatory-fields">
+                        {% for field, stats in analysis.field_completeness.items() %}
+                        <div class="field-item field-{{ stats.status }}">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>{{ field.replace('_', ' ').title() }}</strong>
+                                    {% if stats.status == 'missing' %}
+                                    <span class="text-muted small d-block">Campo não encontrado</span>
+                                    {% else %}
+                                    <span class="text-muted small d-block">
+                                        {{ stats.filled_count }} de {{ stats.total_count }} registros
+                                    </span>
+                                    {% endif %}
+                                </div>
+                                <div class="text-end">
+                                    {% if stats.status != 'missing' %}
+                                    <span class="fs-5 fw-bold">{{ stats.completeness_rate }}%</span>
+                                    {% else %}
+                                    <span class="text-muted">N/A</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Recommendations -->
+                    {% if analysis.recommendations %}
+                    <div class="mt-4">
+                        <h6 class="text-warning mb-3">
+                            <i class="fas fa-lightbulb me-2"></i>
+                            Recomendações
+                        </h6>
+                        {% for rec in analysis.recommendations %}
+                        <div class="recommendation-item rec-{{ rec.type }}">
+                            <div class="d-flex align-items-start">
+                                <i class="fas fa-{% if rec.type == 'critical' %}exclamation-triangle{% elif rec.type == 'improvement' %}arrow-up{% elif rec.type == 'missing' %}question-circle{% else %}check-circle{% endif %} me-2 mt-1"></i>
+                                <div>{{ rec.message }}</div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <div class="card-footer bg-light">
+                    <small class="text-muted">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Status: 
+                        <span class="badge bg-{% if analysis.overall_status == 'excellent' %}success{% elif analysis.overall_status == 'good' %}info{% elif analysis.overall_status == 'fair' %}warning{% else %}danger{% endif %}">
+                            {% if analysis.overall_status == 'excellent' %}Excelente
+                            {% elif analysis.overall_status == 'good' %}Bom
+                            {% elif analysis.overall_status == 'fair' %}Regular
+                            {% elif analysis.overall_status == 'poor' %}Ruim
+                            {% else %}Crítico
+                            {% endif %}
+                        </span>
+                    </small>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Global Recommendations -->
+    <div class="card mt-4">
+        <div class="card-header bg-warning text-dark">
+            <h5 class="mb-0">
+                <i class="fas fa-chart-line me-2"></i>
+                Recomendações Gerais
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <h6 class="text-primary">Para Melhorar a Qualidade dos Dados:</h6>
+                    <ul class="list-unstyled">
+                        <li><i class="fas fa-check text-success me-2"></i>Foque nos campos com completude < 70%</li>
+                        <li><i class="fas fa-check text-success me-2"></i>Revise padrões de extração para campos críticos</li>
+                        <li><i class="fas fa-check text-success me-2"></i>Valide dados de entrada para grupos com baixa completude</li>
+                        <li><i class="fas fa-check text-success me-2"></i>Considere limpeza adicional do texto fonte</li>
+                    </ul>
+                </div>
+                <div class="col-md-6">
+                    <h6 class="text-primary">Para Próximos Processamentos:</h6>
+                    <ul class="list-unstyled">
+                        <li><i class="fas fa-lightbulb text-warning me-2"></i>Use processamento otimizado por grupo</li>
+                        <li><i class="fas fa-lightbulb text-warning me-2"></i>Ajuste tamanho de lote conforme o grupo</li>
+                        <li><i class="fas fa-lightbulb text-warning me-2"></i>Priorize campos obrigatórios na extração</li>
+                        <li><i class="fas fa-lightbulb text-warning me-2"></i>Monitore completude por grupo após processamento</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% else %}
+    <!-- Error or No Data -->
+    <div class="alert alert-warning text-center">
+        <i class="fas fa-exclamation-triangle fa-3x mb-3"></i>
+        <h4>Análise por Grupo de Produto Indisponível</h4>
+        {% if group_analysis.get('error') %}
+        <p>{{ group_analysis.error }}</p>
+        {% else %}
+        <p>Nenhum dado de grupo de produto foi encontrado nos resultados processados.</p>
+        <p class="small text-muted">Certifique-se de que seu CSV contém uma coluna 'product_group' com classificações válidas.</p>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Action Buttons -->
+    <div class="text-center mt-5 mb-4">
+        <div class="btn-group" role="group">
+            <a href="{{ url_for('main.results', session_id=session_id) }}" class="btn btn-outline-primary btn-lg">
+                <i class="fas fa-arrow-left me-2"></i>
+                Voltar aos Resultados
+            </a>
+            <button class="btn btn-success btn-lg" onclick="window.print()">
+                <i class="fas fa-print me-2"></i>
+                Imprimir Relatório
+            </button>
+            <button class="btn btn-info btn-lg" onclick="exportToCSV()">
+                <i class="fas fa-file-csv me-2"></i>
+                Exportar Análise
+            </button>
+            <a href="{{ url_for('main.upload') }}" class="btn btn-outline-secondary btn-lg">
+                <i class="fas fa-upload me-2"></i>
+                Novo Processamento
+            </a>
+        </div>
+    </div>
+
+    <!-- Detailed Statistics Modal -->
+    <div class="modal fade" id="detailsModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-chart-bar me-2"></i>
+                        Estatísticas Detalhadas
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="modalContent">
+                        <!-- Content will be loaded dynamically -->
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+$(document).ready(function() {
+    // Animate completeness bars
+    setTimeout(function() {
+        $('.completeness-fill').each(function() {
+            const width = $(this).data('width') || $(this).css('width');
+            $(this).css('width', '0%').animate({
+                'width': width
+            }, 1500, 'easeOutCubic');
+        });
+    }, 500);
+    
+    // Add hover effects to group cards
+    $('.group-card').hover(
+        function() {
+            $(this).addClass('shadow-lg');
+        },
+        function() {
+            $(this).removeClass('shadow-lg');
+        }
+    );
+    
+    // Add click handler for field items to show details
+    $('.field-item').click(function() {
+        const field = $(this).find('strong').text();
+        const stats = $(this).find('.text-muted').text();
+        const completeness = $(this).find('.fs-5').text() || 'N/A';
+        
+        showFieldDetails(field, stats, completeness);
+    });
+    
+    // Smooth scrolling for any anchor links
+    $('a[href^="#"]').on('click', function(event) {
+        const target = $(this.getAttribute('href'));
+        if (target.length) {
+            event.preventDefault();
+            $('html, body').stop().animate({
+                scrollTop: target.offset().top - 100
+            }, 1000);
+        }
+    });
+});
+
+function showFieldDetails(field, stats, completeness) {
+    const content = `
+        <div class="text-center mb-3">
+            <h4>${field}</h4>
+            <div class="row">
+                <div class="col-md-4">
+                    <h3 class="text-primary">${completeness}</h3>
+                    <small>Completude</small>
+                </div>
+                <div class="col-md-8">
+                    <p class="text-muted">${stats}</p>
+                </div>
+            </div>
+        </div>
+        <div class="alert alert-info">
+            <strong>Sobre este campo:</strong><br>
+            Este é um campo obrigatório para o grupo de produto selecionado. 
+            A completude indica quantos registros possuem dados válidos extraídos para este campo.
+        </div>
+    `;
+    
+    $('#modalContent').html(content);
+    $('#detailsModal').modal('show');
+}
+
+function exportToCSV() {
+    // Create CSV data from the analysis
+    let csvContent = "Grupo,Nome do Grupo,Total de Registros,Completude Geral,Campo,Completude do Campo,Registros Preenchidos,Total de Registros\n";
+    
+    {% if group_analysis and not group_analysis.get('error') %}
+    {% for group_key, analysis in group_analysis.items() %}
+    {% for field, stats in analysis.field_completeness.items() %}
+    csvContent += `"{{ group_key }}","{{ analysis.group_name }}",{{ analysis.total_records }},{{ analysis.overall_completeness }},{{ field }},{{ stats.completeness_rate }},{{ stats.filled_count }},{{ stats.total_count }}\n`;
+    {% endfor %}
+    {% endfor %}
+    {% endif %}
+    
+    // Create and download file
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `analise_grupos_produto_${new Date().getTime()}.csv`;
+    link.click();
+    window.URL.revokeObjectURL(url);
+    
+    // Show success message
+    showNotification('Análise exportada com sucesso!', 'success');
+}
+
+function showNotification(message, type) {
+    const notification = $(`
+        <div class="alert alert-${type === 'success' ? 'success' : 'info'} alert-dismissible fade show position-fixed" 
+             style="top: 20px; right: 20px; z-index: 9999; min-width: 300px;">
+            <i class="fas fa-${type === 'success' ? 'check' : 'info'}-circle me-2"></i>
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `);
+    
+    $('body').append(notification);
+    
+    setTimeout(function() {
+        notification.fadeOut();
+    }, 5000);
+}
+
+// Print optimization
+window.addEventListener('beforeprint', function() {
+    $('.btn').hide();
+    $('.modal').modal('hide');
+});
+
+window.addEventListener('afterprint', function() {
+    $('.btn').show();
+});
+
+// Add custom easing for animations
+$.easing.easeOutCubic = function(x, t, b, c, d) {
+    return c*((t=t/d-1)*t*t + 1) + b;
+};
+
+// Auto-scroll to first critical group if any
+$(document).ready(function() {
+    const criticalGroup = $('.status-critical').first().closest('.group-card');
+    if (criticalGroup.length) {
+        setTimeout(function() {
+            $('html, body').animate({
+                scrollTop: criticalGroup.offset().top - 100
+            }, 1500);
+            
+            // Highlight critical group briefly
+            criticalGroup.addClass('border border-danger border-3');
+            setTimeout(function() {
+                criticalGroup.removeClass('border border-danger border-3');
+            }, 3000);
+        }, 2000);
+    }
+});
+</script>
+
+<style>
+/* Additional responsive styles */
+@media (max-width: 768px) {
+    .group-card {
+        margin-bottom: 1rem;
+    }
+    
+    .field-item {
+        padding: 0.5rem;
+        margin: 0.25rem 0;
+    }
+    
+    .summary-section .row > div {
+        margin-bottom: 1rem;
+    }
+    
+    .btn-group {
+        flex-direction: column;
+        width: 100%;
+    }
+    
+    .btn-group .btn {
+        margin-bottom: 0.5rem;
+        border-radius: 0.5rem !important;
+    }
+}
+
+/* Print styles */
+@media print {
+    .summary-section {
+        background: #f8f9fa !important;
+        color: #333 !important;
+        border: 2px solid #dee2e6;
+    }
+    
+    .group-card {
+        border: 2px solid #dee2e6;
+        page-break-inside: avoid;
+        margin-bottom: 1rem;
+    }
+    
+    .completeness-fill {
+        background: #6c757d !important;
+    }
+    
+    .field-item {
+        border: 1px solid #dee2e6;
+    }
+}
+
+/* Animation for status indicators */
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+.status-critical .completeness-text {
+    animation: pulse 2s infinite;
+}
+
+/* Enhanced tooltips */
+.field-item[title]:hover::after {
+    content: attr(title);
+    position: absolute;
+    background: #333;
+    color: white;
+    padding: 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.875rem;
+    white-space: nowrap;
+    z-index: 1000;
+    margin-top: -2rem;
+    margin-left: 1rem;
+}
+</style>
+{% endblock %}

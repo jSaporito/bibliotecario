@@ -2,9 +2,15 @@ from flask_wtf import FlaskForm
 from flask_wtf.file import FileField, FileAllowed, FileRequired
 from wtforms import StringField, SelectField, IntegerField, BooleanField, SubmitField
 from wtforms.validators import DataRequired, NumberRange
-
+from wtforms import SelectField
+from core.product_groups import product_group_manager
 class UploadForm(FlaskForm):
     """Enhanced upload form with analysis options"""
+    validate_product_groups = BooleanField(
+        'Validar Grupos de Produto',
+        default=True,
+        description='Verificar se os grupos de produto são válidos'
+    )
     
     file = FileField(
         'Arquivo CSV',
