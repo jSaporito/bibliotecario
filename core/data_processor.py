@@ -681,7 +681,7 @@ class GroupBasedDataProcessor:
             'processing_summary': self._generate_group_processing_summary(),
             'group_analysis': self.stats.get('mandatory_field_coverage', {}),
             'quality_metrics': self.stats.get('quality_metrics', {}),
-            'cleaning_summary': self.cleaner.get_group_cleaning_summary(None) if hasattr(self.cleaner, 'get_group_cleaning_summary') else {},
+            'cleaning_summary': self.cleaner.get_group_cleaning_summary(self.original_df) if hasattr(self.cleaner, 'get_group_cleaning_summary') else {},
             'extraction_summary': self.extractor.get_extraction_stats_by_group(None) if hasattr(self.extractor, 'get_extraction_stats_by_group') else {},
             'generated_at': datetime.now().isoformat()
         }
@@ -750,5 +750,4 @@ class GroupBasedDataProcessor:
             return {'error': f"Preview falhou: {str(e)}"}
 
 
-# Backward compatibility
 EnhancedTelecomDataProcessor = GroupBasedDataProcessor

@@ -91,17 +91,17 @@ class GroupBasedTextExtractor:
             ],
             
             'model_onu': [
-                r'modelo\s*onu[:\s]*([A-Za-z0-9-]+)',
-                r'onu\s*model[:\s]*([A-Za-z0-9-]+)',
-                r'ONU[:\s]*([A-Za-z0-9-]+)',
-                r'model[:\s]*([A-Za-z0-9-]+)'
+                r'modelo\s*onu[:\s]*([A-Za-z0-9\-]+)',
+                r'onu\s*model[:\s]*([A-Za-z0-9\-]+)',
+                r'ONU[:\s]*([A-Za-z0-9\-]+)',
+                r'model[:\s]*([A-Za-z0-9\-]+)'
             ],
             
             # Interface and Connectivity (Critical for L2L and enterprise)
             'interface_1': [
-                r'interface\s*([\w\d/-]+)',
-                r'porta[:\s]*([\w\d/-]+)',
-                r'port[:\s]*([\w\d/-]+)',
+                r'interface\s*([\w\d/\-]+)',
+                r'porta[:\s]*([\w\d/\-]+)',
+                r'port[:\s]*([\w\d/\-]+)',
                 r'ethernet\s*([0-9/]+)',
                 r'([A-Z]{4,}\d+/Frame\d+/Slot\d+/Port\d+)'
             ],
@@ -138,24 +138,24 @@ class GroupBasedTextExtractor:
             
             # WiFi Information (Critical for residential broadband)
             'wifi_ssid': [
-                r'SSID[:\s]*([A-Za-z0-9_-]+)',
-                r'ssid[:\s]*([A-Za-z0-9_-]+)',
-                r'rede[:\s]*([A-Za-z0-9_-]+)',
-                r'wifi[:\s]*name[:\s]*([A-Za-z0-9_-]+)'
+                r'SSID[:\s]*([A-Za-z0-9_\-]+)',
+                r'ssid[:\s]*([A-Za-z0-9_\-]+)',
+                r'rede[:\s]*([A-Za-z0-9_\-]+)',
+                r'wifi[:\s]*name[:\s]*([A-Za-z0-9_\-]+)'
             ],
             
-            'wifi_passcode': [
-                r'password[:\s]*([A-Za-z0-9@#$%^&*()_+-=]+)',
-                r'passcode[:\s]*([A-Za-z0-9@#$%^&*()_+-=]+)',
-                r'senha[:\s]*([A-Za-z0-9@#$%^&*()_+-=]+)',
-                r'wifi[:\s]*pass[:\s]*([A-Za-z0-9@#$%^&*()_+-=]+)'
+           'wifi_passcode': [
+                r'password[:\s]*([A-Za-z0-9@#$%^&*()_=+\-]+)',
+                r'passcode[:\s]*([A-Za-z0-9@#$%^&*()_=+\-]+)',
+                r'senha[:\s]*([A-Za-z0-9@#$%^&*()_=+\-]+)',
+                r'wifi[:\s]*pass[:\s]*([A-Za-z0-9@#$%^&*()_=+\-]+)'
             ],
             
             'login_pppoe': [
-                r'login\s*pppoe[:\s]*([A-Za-z0-9@._-]+)',
-                r'usuario\s*pppoe[:\s]*([A-Za-z0-9@._-]+)',
-                r'pppoe[:\s]*([A-Za-z0-9@._-]+)',
-                r'user[:\s]*([A-Za-z0-9@._-]+)'
+                r'login\s*pppoe[:\s]*([A-Za-z0-9@._\-]+)',
+                r'usuario\s*pppoe[:\s]*([A-Za-z0-9@._\-]+)',
+                r'pppoe[:\s]*([A-Za-z0-9@._\-]+)',
+                r'user[:\s]*([A-Za-z0-9@._\-]+)'
             ],
             
             # Physical Infrastructure
@@ -188,9 +188,9 @@ class GroupBasedTextExtractor:
             
             # MAC Addresses
             'mac_address': [
-                r'([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})',
+                r'([0-9A-Fa-f]{2}[:\-]){5}([0-9A-Fa-f]{2})',
                 r'([0-9A-Fa-f]{12})',
-                r'MAC[:\s]*([0-9A-Fa-f:.-]{12,17})'
+                r'MAC[:\s]*([0-9A-Fa-f:.\-]{12,17})'
             ],
             
             # IPv6 Information
@@ -363,6 +363,7 @@ class GroupBasedTextExtractor:
         
         for pattern in patterns:
             try:
+                print(f"🔍 Testing pattern for field '{field}': {pattern}")  # DEBUG LINE
                 matches = re.findall(pattern, text, re.IGNORECASE | re.MULTILINE)
                 if matches:
                     for match in matches:
@@ -575,7 +576,7 @@ class GroupBasedTextExtractor:
         
         elif field in ['cpe', 'model_onu', 'service_code']:
             # Clean equipment identifiers
-            return re.sub(r'[^\w\d-.]', '', value).upper()
+            return re.sub(r'[^\w\d\-.]', '', value).upper()
         
         elif field == 'serial_code':
             # Clean serial numbers
@@ -668,12 +669,21 @@ class GroupBasedTextExtractor:
         """Return list of all extractable fields"""
         return list(self.field_patterns.keys())
     
-    def get_extraction_stats_by_group(self, df, obs_column='obs', product_group_column='product_group'):
+    def get_extraction_stats_by_group(self, df, product_group_column='product_group'):
         """
-        Get comprehensive extraction statistics by product group
+        Get extraction statistics by product group
         """
+        # Add this null check at the very beginning
+        if df is None:
+            return {
+                'total_groups': 0,
+                'total_extractions': 0,
+                'avg_extraction_rate': 0.0,
+                'group_details': {}
+            }
+        
         if product_group_column not in df.columns:
-            return {'error': 'Product group column not found'}
+            return {}
         
         stats = {}
         

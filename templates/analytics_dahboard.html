@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bibliotecário - Analytics Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.0/socket.io.js"></script>
+    <style>
+        /* Include the CSS from the frontend component */
+        /* ... (copy all the CSS from the previous HTML file) ... */
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <div class="dashboard-header">
+            <h1 class="dashboard-title">📊 Product Group Analytics</h1>
+            <p class="dashboard-subtitle">Extraction Performance & Data Consistency Analysis</p>
+            <div style="margin-top: 20px;">
+                <button id="refreshBtn" class="btn btn-primary">🔄 Refresh Data</button>
+                <button id="exportBtn" class="btn btn-secondary">📥 Export Analytics</button>
+                <a href="/" class="btn btn-outline">← Back to Main</a>
+            </div>
+        </div>
+        
+        <div id="loadingIndicator" style="text-align: center; margin: 40px 0;">
+            <div class="loading-spinner"></div>
+            <p>Loading analytics data...</p>
+        </div>
+        
+        <div id="noDataMessage" style="display: none; text-align: center; margin: 40px 0;">
+            <h3>No Analytics Data Available</h3>
+            <p>Please process a file first to see analytics.</p>
+            <a href="/" class="btn btn-primary">Process Files</a>
+        </div>
+        
+        <div id="analyticsContent" style="display: none;">
+            <div class="summary-cards" id="summaryCards">
+                <!-- Summary cards will be populated here -->
+            </div>
+            
+            <div class="groups-container" id="groupsContainer">
+                <!-- Groups will be dynamically generated here -->
+            </div>
+            
+            <div class="comparison-section">
+                <h2 class="comparison-title">🏆 Performance Comparison</h2>
+                <div class="comparison-grid" id="comparisonGrid">
+                    <!-- Comparison cards will be generated here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class AnalyticsDashboard {
+            constructor() {
+                this.charts = {};
+                this.analytics = {};
+                this.init();
+            }
+
+            async init() {
+                try {
+                    await this.loadAnalytics();
+                    this.renderDashboard();
+                    this.setupEventListeners();
+                } catch (error) {
+                    console.error('Failed to initialize dashboard:', error);
+                    this.showNoDataMessage();
+                }
+            }
+
+            async loadAnalytics() {
+                const response = await fetch('/api/analytics/groups');
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                if (data.error) {
+                    throw new Error(data.message || data.error);
+                }
+                
+                this.analytics = data.group_analytics;
+                this.summaryStats = data.summary_statistics;
+                this.comparisonReport = data.comparison_report;
+            }
+
+            renderDashboard() {
+                document.getElementById('loadingIndicator').style.display = 'none';
+                document.getElementById('analyticsContent').style.display = 'block';
+                
+                this.renderSummary();
+                this.renderGroups();
+                this.renderComparison();
+            }
+
+            showNoDataMessage() {
+                document.getElementById('loadingIndicator').style.display = 'none';
+                document.getElementById('noDataMessage').style.display = 'block';
+            }
+
+            renderSummary() {
+                const container = document.getElementById('summaryCards');
+                container.innerHTML = `
+                    <div class="summary-card">
+                        <div class="card-value">${this.summaryStats.total_records.toLocaleString()}</div>
+                        <div class="card-label">Total Records Processed</div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="card-value">${this.summaryStats.average_extraction_rate.toFixed(1)}%</div>
+                        <div class="card-label">Average Extraction Rate</div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="card-value">${this.summaryStats.average_consistency_improvement.toFixed(1)}%</div>
+                        <div class="card-label">Average Consistency Improvement</div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="card-value">${Object.keys(this.analytics).length}</div>
+                        <div class="card-label">Product Groups Analyzed</div>
+                    </div>
+                `;
+            }
+
+            renderGroups() {
+                const container = document.getElementById('groupsContainer');
+                container.innerHTML = '';
+
+                Object.entries(this.analytics).forEach(([groupName, data], index) => {
+                    const groupElement = this.createGroupSection(groupName, data, index);
+                    container.appendChild(groupElement);
+                });
+            }
+
+            // ... (include all the chart creation and group rendering methods from the previous component)
+
+            setupEventListeners() {
+                document.getElementById('refreshBtn').addEventListener('click', () => {
+                    window.location.reload();
+                });
+
+                document.getElementById('exportBtn').addEventListener('click', async () => {
+                    try {
+                        const response = await fetch('/api/analytics/export');
+                        if (response.ok) {
+                            const blob = await response.blob();
+                            const url = window.URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.style.display = 'none';
+                            a.href = url;
+                            a.download = `group_analytics_${new Date().getTime()}.xlsx`;
+                            document.body.appendChild(a);
+                            a.click();
+                            window.URL.revokeObjectURL(url);
+                        }
+                    } catch (error) {
+                        console.error('Export failed:', error);
+                        alert('Failed to export analytics data');
+                    }
+                });
+            }
+
+            // ... (include all other methods from the previous component)
+        }
+
+        // Initialize dashboard when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new AnalyticsDashboard();
+        });
+    </script>
+</body>
+</html>
