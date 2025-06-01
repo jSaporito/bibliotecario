@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block title %}Product Group Analysis - Bibliotecario{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="text-center mb-4">
+        <h1 class="text-primary">
+            <i class="fas fa-chart-bar me-2"></i>
+            Análise por Grupo de Produto
+        </h1>
+        <p class="text-muted">Gráficos baseados na análise dos seus dados</p>
+    </div>
+
+    {% if charts %}
+    
+    <!-- Chart 1: Records by Group -->
+    {% if charts.records_by_group %}
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">Registros por Grupo de Produto</h5>
+        </div>
+        <div class="card-body text-center">
+            <img src="{{ charts.records_by_group }}" alt="Registros por Grupo" class="img-fluid">
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Chart 2: Mandatory Fields -->
+    {% if charts.mandatory_fields_by_group %}
+    <div class="card mb-4">
+        <div class="card-header bg-success text-white">
+            <h5 class="mb-0">Campos Obrigatórios por Grupo</h5>
+        </div>
+        <div class="card-body text-center">
+            <img src="{{ charts.mandatory_fields_by_group }}" alt="Campos Obrigatórios" class="img-fluid">
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Chart 3: Distribution -->
+    {% if charts.group_distribution %}
+    <div class="card mb-4">
+        <div class="card-header bg-info text-white">
+            <h5 class="mb-0">Distribuição de Registros</h5>
+        </div>
+        <div class="card-body text-center">
+            <img src="{{ charts.group_distribution }}" alt="Distribuição" class="img-fluid">
+        </div>
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div class="alert alert-warning">
+        <h4>Nenhum gráfico disponível</h4>
+        <p>Não foi possível gerar os gráficos. Certifique-se de que os dados contêm grupos de produto válidos.</p>
+    </div>
+    {% endif %}
+
+    <!-- Data Summary -->
+    <div class="card mb-4">
+        <div class="card-header bg-dark text-white">
+            <h5 class="mb-0">Resumo dos Dados</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                {% for group_key, group_info in product_groups.items() %}
+                <div class="col-md-6 mb-3">
+                    <div class="card bg-light">
+                        <div class="card-body">
+                            <h6 class="card-title">{{ group_info.name }}</h6>
+                            <p class="mb-1"><strong>Registros:</strong> {{ group_info.record_count }}</p>
+                            <p class="mb-1"><strong>Campos Obrigatórios:</strong> {{ group_info.mandatory_field_count }}</p>
+                            <p class="mb-1"><strong>Categoria:</strong> {{ group_info.category }}</p>
+                            <p class="mb-0"><strong>Percentual:</strong> {{ group_info.percentage }}%</p>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation -->
+    <div class="text-center">
+        <a href="{{ url_for('main.upload') }}" class="btn btn-primary">
+            <i class="fas fa-upload me-2"></i>
+            Processar Dados Completos
+        </a>
+        <a href="{{ url_for('main.index') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-home me-2"></i>
+            Início
+        </a>
+    </div>
+</div>
+{% endblock %}

@@ -135,13 +135,13 @@ class GroupBasedTextCleaner:
             field_patterns = {
                 'serial_code': [r'SN[:\s]*[A-Za-z0-9]+'],
                 'wifi_ssid': [r'SSID[:\s]*[A-Za-z0-9_-]+'],
-                'wifi_passcode': [r'password[:\s]*[A-Za-z0-9@#$%^&*()_+-=]+'],
+                'wifi_passcode': [r'password[:\s]*[A-Za-z0-9@#$%^&*()_=+-]+'],
                 'vlan': [r'VLAN\s*:?\s*\d+'],
                 'ip_management': [r'IP\s*CPE[:\s]*([0-9]{1,3}\.){3}[0-9]{1,3}'],
                 'client_type': [r'(RESIDENCIAL|EMPRESARIAL|CORPORATIVO)'],
                 'technology_id': [r'(GPON|EPON|ETHERNET|MPLS|P2P)'],
                 'asn': [r'AS\s*Cliente[:\s]*\d+'],
-                'interface_1': [r'interface\s*([\w\d/-]+)'],
+                'interface_1': [r'interface\s*([\w\d/\-]+)'],
                 'pop_description': [r'br\.[a-z]{2}\.[a-z]{2,}\.[a-z]{2,}\.pe\.\d+']
             }
             
@@ -311,14 +311,21 @@ class GroupBasedTextCleaner:
             'chars_removed': len(original_text) - len(cleaned_text)
         }
     
-    def get_group_cleaning_summary(self, df, obs_column='obs', product_group_column='product_group'):
-        """
-        Get comprehensive cleaning statistics by product group
-        """
-        if product_group_column not in df.columns:
-            return {}
-        
-        summary = {}
+def get_group_cleaning_summary(self, df, obs_column='obs', product_group_column='product_group'):
+    """
+    Get comprehensive cleaning statistics by product group
+    """
+    # Add this null check at the very beginning
+    if df is None:
+        return {
+            'total_groups': 0,
+            'records_cleaned': 0,
+            'cleaning_efficiency': 0.0,
+            'group_details': {}
+        }
+    
+    if product_group_column not in df.columns:
+        return {}
         
         for group_name in df[product_group_column].unique():
             if pd.isna(group_name):
