@@ -376,6 +376,212 @@ class ProductGroupManager:
             "mac_address": "extracted_mac_address"
         }
     
+    def get_export_columns_for_group(self, group_key, dataframe):
+        """
+        Get the specific columns that should be exported for a product group
+        Returns: ID + hosting_type + product_group + mandatory extracted fields with data
+        """
+        export_columns = []
+        
+        # ALWAYS include ID columns if they exist (case insensitive search)
+        id_column_names = ['id', 'ID', 'Id', 'identifier', 'Identifier', 'IDENTIFIER']
+        for col_name in id_column_names:
+            if col_name in dataframe.columns:
+                export_columns.append(col_name)
+                break  # Only add the first ID column found
+        
+        # ALWAYS include hosting_type columns if they exist (case insensitive search)
+        hosting_type_names = ['hosting_type', 'hosting_Type', 'Hosting_Type', 'HOSTING_TYPE', 
+                            'hostingtype', 'hostingType', 'HostingType', 'HOSTINGTYPE']
+        for col_name in hosting_type_names:
+            if col_name in dataframe.columns:
+                export_columns.append(col_name)
+                break  # Only add the first hosting_type column found
+        
+        # ALWAYS include product_group if it exists
+        if 'product_group' in dataframe.columns:
+            export_columns.append('product_group')
+        
+        # Get mandatory fields for this specific group
+        if self.is_valid_group(group_key):
+            mandatory_fields = self.get_mandatory_fields(group_key)
+            group_data = dataframe[dataframe['product_group'] == group_key] if 'product_group' in dataframe.columns else dataframe
+            
+            print(f"📋 Group {group_key} mandatory fields: {mandatory_fields}")
+            
+            # Add only extracted mandatory fields that actually have data in this group
+            for field in mandatory_fields:
+                extracted_field = f'extracted_{field}'
+                if extracted_field in dataframe.columns:
+                    # Check if this field has meaningful data in this group
+                    field_data = group_data[extracted_field].dropna()
+                    # Remove empty strings and 'nan' values
+                    meaningful_data = field_data[field_data.astype(str).str.strip() != '']
+                    meaningful_data = meaningful_data[meaningful_data.astype(str).str.lower() != 'nan']
+                    
+                    if len(meaningful_data) > 0:
+                        export_columns.append(extracted_field)
+                        print(f"   ✅ Including {extracted_field}: {len(meaningful_data)} records with data")
+                    else:
+                        print(f"   ❌ Skipping {extracted_field}: no meaningful data")
+        
+        # Remove duplicates while preserving order
+        unique_columns = []
+        for col in export_columns:
+            if col not in unique_columns:
+                unique_columns.append(col)
+        
+        print(f"📤 Final export columns for {group_key}: {unique_columns}")
+        return unique_columns
+
+    def get_all_mandatory_export_columns(self, dataframe):
+        """
+        Get all columns that should be exported across all groups
+        Returns: ID + hosting_type + product_group + all mandatory fields with data
+        """
+        all_export_columns = set()
+        
+        # Always include priority columns
+        priority_columns = ['id', 'ID', 'Id', 'identifier', 'Identifier', 
+                        'hosting_type', 'hosting_Type', 'Hosting_Type', 'HOSTING_TYPE',
+                        'hostingtype', 'hostingType']
+        
+        for col in priority_columns:
+            if col in dataframe.columns:
+                all_export_columns.add(col)
+        
+        # Always include product_group
+        if 'product_group' in dataframe.columns:
+            all_export_columns.add('product_group')
+        
+        # Get mandatory fields for each group that exists in the data
+        if 'product_group' in dataframe.columns:
+            for group_key in dataframe['product_group'].dropna().unique():
+                if self.is_valid_group(group_key):
+                    group_columns = self.get_export_columns_for_group(group_key, dataframe)
+                    all_export_columns.update(group_columns)
+        else:
+            # If no product groups, include all extracted fields that have data
+            for col in dataframe.columns:
+                if col.startswith('extracted_') and dataframe[col].notna().any():
+                    all_export_columns.add(col)
+        
+        # Return as ordered list, preserving the columns that exist in the dataframe
+        final_columns = [col for col in dataframe.columns if col in all_export_columns]
+        print(f"📋 All mandatory export columns: {final_columns}")
+        return final_columns
+
+    def validate_mandatory_field_coverage(self, dataframe, group_column='product_group'):
+        """
+        Validate that mandatory fields have adequate coverage for export
+        """
+        validation_results = {}
+        
+        if group_column not in dataframe.columns:
+            return {'error': 'No product group column found'}
+        
+        for group_key in dataframe[group_column].dropna().unique():
+            if not self.is_valid_group(group_key):
+                continue
+                
+            group_data = dataframe[dataframe[group_column] == group_key]
+            mandatory_fields = self.get_mandatory_fields(group_key)
+            group_info = self.get_group_info(group_key)
+            
+            field_coverage = {}
+            total_coverage = 0
+            fields_with_data = 0
+            
+            for field in mandatory_fields:
+                extracted_field = f'extracted_{field}'
+                
+                if extracted_field in group_data.columns:
+                    # Count meaningful data (not null, not empty, not 'nan')
+                    non_null = group_data[extracted_field].notna().sum()
+                    non_empty = group_data[extracted_field].astype(str).str.strip().ne('').sum()
+                    meaningful = group_data[extracted_field].astype(str).str.lower().ne('nan').sum()
+                    
+                    actual_data_count = min(non_null, non_empty, meaningful)
+                    coverage_rate = (actual_data_count / len(group_data)) * 100 if len(group_data) > 0 else 0
+                    
+                    field_coverage[field] = {
+                        'coverage_rate': round(coverage_rate, 2),
+                        'records_with_data': int(actual_data_count),
+                        'total_records': len(group_data),
+                        'will_be_exported': coverage_rate > 0
+                    }
+                    
+                    total_coverage += coverage_rate
+                    if coverage_rate > 0:
+                        fields_with_data += 1
+                else:
+                    field_coverage[field] = {
+                        'coverage_rate': 0.0,
+                        'records_with_data': 0,
+                        'total_records': len(group_data),
+                        'will_be_exported': False,
+                        'missing_field': True
+                    }
+            
+            avg_coverage = total_coverage / len(mandatory_fields) if mandatory_fields else 0
+            
+            validation_results[group_key] = {
+                'group_name': group_info['name'] if group_info else group_key,
+                'total_records': len(group_data),
+                'mandatory_fields_count': len(mandatory_fields),
+                'fields_with_data': fields_with_data,
+                'fields_to_export': fields_with_data,
+                'average_coverage': round(avg_coverage, 2),
+                'field_details': field_coverage,
+                'export_ready': fields_with_data > 0,
+                'quality_assessment': (
+                    'excellent' if avg_coverage >= 80 else
+                    'good' if avg_coverage >= 60 else
+                    'fair' if avg_coverage >= 30 else
+                    'poor'
+                )
+            }
+        
+        return validation_results
+
+    # Add to the end of the ProductGroupManager class:
+    def create_export_summary(self, dataframe, group_column='product_group'):
+        """
+        Create a summary of what will be exported
+        """
+        summary = {
+            'export_type': 'mandatory_fields_only',
+            'total_records': len(dataframe),
+            'export_timestamp': datetime.now().isoformat(),
+            'groups_processed': 0,
+            'total_fields_exported': 0,
+            'priority_columns_found': [],
+            'group_summaries': {}
+        }
+        
+        # Check for priority columns
+        priority_columns = ['id', 'ID', 'Id', 'hosting_type', 'hosting_Type', 'product_group']
+        for col in priority_columns:
+            if col in dataframe.columns:
+                summary['priority_columns_found'].append(col)
+        
+        # Analyze by group
+        if group_column in dataframe.columns:
+            for group_key in dataframe[group_column].dropna().unique():
+                if self.is_valid_group(group_key):
+                    export_columns = self.get_export_columns_for_group(group_key, dataframe)
+                    group_info = self.get_group_info(group_key)
+                    
+                    summary['group_summaries'][group_key] = {
+                        'name': group_info['name'] if group_info else group_key,
+                        'records': len(dataframe[dataframe[group_column] == group_key]),
+                        'columns_to_export': len(export_columns),
+                        'exported_columns': export_columns
+                    }
+                    summary['groups_processed'] += 1
+                    summary['total_fields_exported'] += len([col for col in export_columns if col.startswith('extracted_')])
+        
+        return summary
     def get_all_groups(self):
         """Get all available product group keys"""
         return list(self.product_groups.keys())

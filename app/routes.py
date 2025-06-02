@@ -213,7 +213,7 @@ def download_group(session_id, format, group_key):
 # ===============================
 
 def process_file(app, session_id):
-    """Background file processing with product group support"""
+    """Background file processing with product group support - MANDATORY FIELDS ONLY"""
     config = processing_status[session_id]
     
     def update_progress(message, progress=None):
@@ -242,12 +242,25 @@ def process_file(app, session_id):
             if not results['success']:
                 raise Exception(f"Processamento falhou: {'; '.join(results.get('errors', []))}")
             
-            update_progress("Exportando arquivos...", 85)
+            update_progress("Exportando arquivos (apenas campos obrigatórios)...", 85)
             
-            # Export files with product group support
+            # CRITICAL: Ensure ID and hosting_type columns are preserved
+            processed_df = results['dataframe']
+            
+            # Log what columns we have before export
+            print(f"🔍 Columns in processed dataframe: {list(processed_df.columns)}")
+            
+            # Check for ID and hosting_type columns (case insensitive)
+            id_columns = [col for col in processed_df.columns if col.lower() in ['id', 'identifier']]
+            hosting_columns = [col for col in processed_df.columns if 'hosting' in col.lower() and 'type' in col.lower()]
+            
+            print(f"🔍 Found ID columns: {id_columns}")
+            print(f"🔍 Found hosting type columns: {hosting_columns}")
+            
+            # Export files with MANDATORY FIELDS ONLY
             download_folder = current_app.config['DOWNLOAD_FOLDER']
             exporter = EnhancedExportHandler()
-            filename_base = f"extracted_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            filename_base = f"mandatory_fields_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
             
             # Handle export formats
             export_formats = []
@@ -258,9 +271,9 @@ def process_file(app, session_id):
             else:
                 export_formats = [config['export_formats']]
             
-            # Export with product group manager - THIS IS THE KEY CHANGE
+            # Export with MANDATORY FIELDS ONLY - pass the group manager
             export_results = exporter.export_data(
-                dataframe=results['dataframe'],
+                dataframe=processed_df,
                 output_dir=download_folder,
                 filename_base=filename_base,
                 formats=export_formats,
@@ -270,18 +283,19 @@ def process_file(app, session_id):
             if not export_results['success']:
                 raise Exception(f"Exportação falhou: {'; '.join(export_results.get('errors', []))}")
             
-            update_progress("Processamento concluído!", 100)
+            update_progress("Processamento concluído! Apenas campos obrigatórios exportados.", 100)
             
             # Store results with enhanced download info
             config.update({
                 'status': 'completed',
                 'progress': 100,
-                'message': 'Processamento concluído com sucesso!',
+                'message': 'Processamento concluído com sucesso! Exportados apenas campos obrigatórios + ID + hosting type.',
                 'results': {
                     'stats': results['stats'],
-                    'dataframe': results['dataframe'],
+                    'dataframe': processed_df,
                     'download_info': exporter.create_download_info(export_results),
-                    'has_product_groups': 'product_group' in results['dataframe'].columns and processor.group_manager is not None
+                    'has_product_groups': 'product_group' in processed_df.columns and processor.group_manager is not None,
+                    'export_type': 'mandatory_fields_only'
                 }
             })
             
